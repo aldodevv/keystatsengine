@@ -1,0 +1,24 @@
+"""
+Base Data Provider Interface for IDX Keystats and Financial Statements.
+"""
+
+from abc import ABC, abstractmethod
+from typing import Optional, List
+from app.models.keystats import RawKeyStats
+
+
+class BaseDataProvider(ABC):
+    @abstractmethod
+    def get_keystats(self, ticker: str) -> Optional[RawKeyStats]:
+        """Fetches raw keystats and financial statements for a given ticker."""
+        pass
+        
+    @abstractmethod
+    def list_all_tickers(self) -> List[str]:
+        """Returns all available IDX tickers."""
+        pass
+        
+    @abstractmethod
+    def search_tickers(self, query: str) -> List[RawKeyStats]:
+        """Searches tickers by code or name."""
+        pass

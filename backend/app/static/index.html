@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IDX Emiten KeyStats & Valuation Engine | Bloomberg-Grade Fundamental Terminal</title>
+    <meta name="description" content="Institutional-grade fundamental analysis, multi-factor scoring, and valuation engine for IDX Indonesian stocks.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+    <!-- Tailwind CDN for high-speed utility rendering -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                        },
+                        dark: {
+                            bg: '#0B0F19',
+                            card: '#111827',
+                            surface: '#1E293B',
+                            border: '#334155',
+                            subtle: '#1f293d',
+                        },
+                        accent: {
+                            green: '#10B981',
+                            emerald: '#059669',
+                            cyan: '#06B6D4',
+                            amber: '#F59E0B',
+                            rose: '#F43F5E',
+                            purple: '#8B5CF6'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['"JetBrains Mono"', 'monospace'],
+                        display: ['"Plus Jakarta Sans"', 'sans-serif']
+                    }
+                }
+            }
+        }
+    </script>
+    <link rel="stylesheet" href="/static/app.css">
+</head>
+<body class="bg-dark-bg text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-500 selection:text-white">
+
+    <!-- Top Navigation Header -->
+    <header class="border-b border-dark-border bg-dark-card/80 backdrop-blur-md sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-indigo-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-brand-500/20">
+                    <span class="font-display font-black text-white text-xl">IDX</span>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="font-display font-bold text-lg text-white tracking-tight">KeyStats Engine</span>
+                        <span class="px-2 py-0.5 text-[10px] font-mono font-bold bg-brand-500/20 text-brand-400 border border-brand-500/30 rounded-full">v1.0 PRO</span>
+                    </div>
+                    <p class="text-xs text-slate-400">Institutional Fundamental Analysis & Valuation Terminal</p>
+                </div>
+            </div>
+
+            <!-- Tab Navigation Buttons -->
+            <nav class="flex items-center bg-dark-bg/80 border border-dark-border p-1 rounded-xl">
+                <button id="tab-single" class="nav-tab active px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-white bg-brand-600 shadow-md">
+                    <span>🔍 Single Emiten</span>
+                </button>
+                <button id="tab-compare" class="nav-tab px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-slate-400 hover:text-white">
+                    <span>⚖️ Peer Comparison</span>
+                </button>
+                <button id="tab-screener" class="nav-tab px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-slate-400 hover:text-white">
+                    <span>⚡ Screener & Presets</span>
+                </button>
+            </nav>
+
+            <!-- Status Indicator & Quick Hotkeys -->
+            <div class="hidden md:flex items-center gap-3">
+                <div class="flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-mono">
+                    <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>ENGINE READY</span>
+                </div>
+                <div class="text-xs font-mono text-slate-400 border border-dark-border px-2.5 py-1 rounded-lg bg-dark-card">
+                    IDX LIVE DATA
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ========================================================================= -->
+        <!-- TAB 1: SINGLE EMITEN CALCULATION -->
+        <!-- ========================================================================= -->
+        <section id="section-single" class="tab-content block space-y-6">
+            <!-- Search & Quick Ticker Selector Bar -->
+            <div class="bg-dark-card border border-dark-border p-4 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
+                <div class="flex-1 w-full relative">
+                    <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                    </div>
+                    <input type="text" id="single-ticker-input" placeholder="Ketik kode emiten IDX (contoh: BBRI, BBCA, ASII, ADRO, ICBP, UNTR)..." class="w-full bg-dark-bg border border-dark-border rounded-xl pl-10 pr-44 py-2.5 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 focus:ring-1 focus:ring-brand-500 uppercase font-mono tracking-wider">
+                    <div class="absolute right-1.5 top-1.5 bottom-1.5 flex items-center gap-1.5">
+                        <button id="refresh-live-price-btn" title="Refresh Live Real-time Price" class="px-2.5 py-1 bg-dark-surface hover:bg-dark-border text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-mono transition flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span class="hidden sm:inline">Live Quote</span>
+                        </button>
+                        <button id="single-search-btn" class="px-4 py-1 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-semibold transition-all shadow-md flex items-center gap-1">
+                            <span>Hitung</span>
+                            <kbd class="hidden sm:inline-block px-1 py-0.5 text-[10px] bg-brand-700 rounded text-brand-200">↵</kbd>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Quick Pick Popular Chips -->
+                <div class="flex items-center gap-1.5 overflow-x-auto w-full md:w-auto pb-1 md:pb-0 text-xs font-mono">
+                    <span class="text-slate-400 text-[11px] uppercase mr-1">Popular:</span>
+                    <button class="quick-chip px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-brand-600/30 border border-dark-border text-slate-300 hover:text-white transition">BBRI</button>
+                    <button class="quick-chip px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-brand-600/30 border border-dark-border text-slate-300 hover:text-white transition">BBCA</button>
+                    <button class="quick-chip px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-brand-600/30 border border-dark-border text-slate-300 hover:text-white transition">BMRI</button>
+                    <button class="quick-chip px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-brand-600/30 border border-dark-border text-slate-300 hover:text-white transition">ASII</button>
+                    <button class="quick-chip px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-brand-600/30 border border-dark-border text-slate-300 hover:text-white transition">ADRO</button>
+                    <button class="quick-chip px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-brand-600/30 border border-dark-border text-slate-300 hover:text-white transition">ICBP</button>
+                    <button class="quick-chip px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-brand-600/30 border border-dark-border text-slate-300 hover:text-white transition">TLKM</button>
+                    <button class="quick-chip px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-brand-600/30 border border-dark-border text-slate-300 hover:text-white transition">UNTR</button>
+                </div>
+            </div>
+
+            <!-- Single Emiten Output View -->
+            <div id="single-report-container" class="space-y-6">
+                <!-- Header Banner Card -->
+                <div class="bg-gradient-to-br from-dark-card via-dark-card to-dark-surface/60 border border-dark-border rounded-2xl p-6 shadow-2xl relative overflow-hidden">
+                    <div class="absolute top-0 right-0 w-96 h-96 bg-brand-500/5 rounded-full blur-3xl pointer-events-none"></div>
+
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
+                        <div class="space-y-2">
+                            <div class="flex items-center gap-3">
+                                <span id="r-ticker" class="text-3xl font-display font-black text-white px-3 py-1 bg-brand-600/20 border border-brand-500/40 rounded-xl">BBRI</span>
+                                <h1 id="r-name" class="text-xl sm:text-2xl font-bold text-slate-100">Bank Rakyat Indonesia (Persero) Tbk</h1>
+                            </div>
+                            <div class="flex flex-wrap items-center gap-3 text-xs text-slate-400 font-mono">
+                                <span class="flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-cyan-400"></span> Sector: <strong id="r-sector" class="text-slate-200">Financials</strong></span>
+                                <span>•</span>
+                                <span class="flex items-center gap-1">Industry: <strong id="r-industry" class="text-slate-200">Banking</strong></span>
+                                <span>•</span>
+                                <span class="flex items-center gap-1">Market Cap: <strong id="r-market-cap" class="text-slate-200">Rp 719.9 T</strong></span>
+                            </div>
+                            <div class="flex items-baseline gap-3 text-2xl font-mono font-bold text-white pt-1">
+                                <span id="r-price">Rp 4,750</span>
+                                <span id="r-price-change" class="text-sm font-semibold font-mono text-emerald-400">(+0.00%)</span>
+                                <span id="r-upside-badge" class="text-xs font-sans font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">+10.6% Upside</span>
+                                <span class="text-[10px] font-mono px-2 py-0.5 rounded bg-dark-surface text-slate-400 border border-dark-border">⚡ Realtime Price Terintegrasi</span>
+                            </div>
+                        </div>
+
+                        <!-- Overall Composite Score & Action Verdict -->
+                        <div class="flex items-center gap-4 bg-dark-bg/80 border border-dark-border p-4 rounded-2xl">
+                            <!-- Composite Score -->
+                            <div class="text-center px-3">
+                                <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Fundamental Score</div>
+                                <div class="flex items-baseline justify-center gap-1 mt-1">
+                                    <span id="r-composite-score" class="text-4xl font-display font-black text-brand-400">84.3</span>
+                                    <span class="text-xs text-slate-500">/100</span>
+                                </div>
+                                <div class="mt-1">
+                                    <span id="r-grade" class="px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">GRADE A</span>
+                                </div>
+                            </div>
+                            <div class="h-12 w-px bg-dark-border"></div>
+                            <!-- Action Verdict -->
+                            <div class="text-center px-3">
+                                <div class="text-xs text-slate-400 uppercase tracking-wider font-semibold">Action Verdict</div>
+                                <div id="r-verdict-badge" class="mt-2 px-4 py-1.5 rounded-xl font-display font-extrabold text-sm tracking-wide bg-emerald-500 text-dark-bg shadow-lg shadow-emerald-500/30">
+                                    STRONG BUY
+                                </div>
+                                <div id="r-fair-value-text" class="text-[11px] font-mono text-slate-400 mt-1">Target: Rp 5,253</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 4 Core Pillar Ratio Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Pillar 1: Valuation -->
+                    <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                        <div class="flex items-center justify-between border-b border-dark-border/60 pb-3 mb-3">
+                            <span class="font-display font-bold text-sm text-amber-400 flex items-center gap-1.5">
+                                <span>💰</span> Valuasi Harga Wajar
+                            </span>
+                            <span id="p-val-score" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-amber-500/20 text-amber-300">75/100</span>
+                        </div>
+                        <div class="space-y-2 text-xs font-mono">
+                            <div class="flex justify-between"><span class="text-slate-400">P/E Ratio (PER):</span><strong id="r-per" class="text-white">11.9x</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">P/B Ratio (PBV):</span><strong id="r-pbv" class="text-white">2.27x</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">EV / EBITDA:</span><strong id="r-ev-ebitda" class="text-white">9.43x</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">PEG Ratio:</span><strong id="r-peg" class="text-white">1.1x</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Graham Number:</span><strong id="r-graham" class="text-cyan-400">Rp 4,332</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">DCF Fair Value:</span><strong id="r-dcf" class="text-emerald-400">Rp 5,894</strong></div>
+                            <div class="pt-2 border-t border-dark-border/40 flex justify-between font-bold">
+                                <span class="text-slate-300">Average Target:</span>
+                                <span id="r-avg-fair" class="text-brand-400">Rp 5,253</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 2: Profitability -->
+                    <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                        <div class="flex items-center justify-between border-b border-dark-border/60 pb-3 mb-3">
+                            <span class="font-display font-bold text-sm text-emerald-400 flex items-center gap-1.5">
+                                <span>📈</span> Profitabilitas & DuPont
+                            </span>
+                            <span id="p-prof-score" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300">90/100</span>
+                        </div>
+                        <div class="space-y-2 text-xs font-mono">
+                            <div class="flex justify-between"><span class="text-slate-400">Return on Equity (ROE):</span><strong id="r-roe" class="text-emerald-400 font-bold">19.06%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Return on Assets (ROA):</span><strong id="r-roa" class="text-white">3.08%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">ROIC (Invested Cap):</span><strong id="r-roic" class="text-white">16.68%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Gross Margin (GPM):</span><strong id="r-gpm" class="text-white">83.12%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Net Margin (NPM):</span><strong id="r-npm" class="text-white">30.44%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">DuPont Asset Turnover:</span><strong id="r-dupont-ato" class="text-slate-300">0.10x</strong></div>
+                            <div class="pt-2 border-t border-dark-border/40 flex justify-between font-bold">
+                                <span class="text-slate-300">DuPont Equity Mult:</span>
+                                <span id="r-dupont-em" class="text-slate-200">6.20x</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 3: Health & Solvency -->
+                    <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                        <div class="flex items-center justify-between border-b border-dark-border/60 pb-3 mb-3">
+                            <span class="font-display font-bold text-sm text-cyan-400 flex items-center gap-1.5">
+                                <span>🛡️</span> Kesehatan & Solvabilitas
+                            </span>
+                            <span id="p-health-score" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-cyan-500/20 text-cyan-300">88/100</span>
+                        </div>
+                        <div class="space-y-2 text-xs font-mono">
+                            <div class="flex justify-between"><span class="text-slate-400">Debt to Equity (DER):</span><strong id="r-der" class="text-white">0.69x</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Net Debt / Equity:</span><strong id="r-net-der" class="text-white">0.09x</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Altman Z-Score:</span><strong id="r-altman" class="text-emerald-400">3.5 (SAFE)</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Piotroski F-Score:</span><strong id="r-piotroski" class="text-emerald-400 font-bold">8 / 9</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Current Ratio:</span><strong id="r-current-ratio" class="text-white">0.41x</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">CFO to Net Income:</span><strong id="r-cfo-ratio" class="text-emerald-400">1.08x</strong></div>
+                            <div class="pt-2 border-t border-dark-border/40 flex justify-between font-bold">
+                                <span class="text-slate-300">Earnings Quality:</span>
+                                <span id="r-quality-badge" class="text-emerald-400">PRISTINE</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Pillar 4: Cash Flow & Dividend -->
+                    <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg relative overflow-hidden">
+                        <div class="flex items-center justify-between border-b border-dark-border/60 pb-3 mb-3">
+                            <span class="font-display font-bold text-sm text-purple-400 flex items-center gap-1.5">
+                                <span>💵</span> Cash Flow & Dividen
+                            </span>
+                            <span id="p-cf-score" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300">100/100</span>
+                        </div>
+                        <div class="space-y-2 text-xs font-mono">
+                            <div class="flex justify-between"><span class="text-slate-400">Free Cash Flow:</span><strong id="r-fcf" class="text-emerald-400 font-bold">Rp 53.0 T</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">FCF Yield:</span><strong id="r-fcf-yield" class="text-white">7.36%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Dividend Yield:</span><strong id="r-div-yield" class="text-purple-400 font-bold">6.72%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Dividend Payout (DPR):</span><strong id="r-dpr" class="text-white">80.0%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">Revenue Growth YoY:</span><strong id="r-rev-growth" class="text-emerald-400">+11.5%</strong></div>
+                            <div class="flex justify-between"><span class="text-slate-400">EPS Growth YoY:</span><strong id="r-eps-growth" class="text-emerald-400">+10.9%</strong></div>
+                            <div class="pt-2 border-t border-dark-border/40 flex justify-between font-bold">
+                                <span class="text-slate-300">Dividend Safety:</span>
+                                <span id="r-div-safe" class="text-emerald-400">SUSTAINABLE</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Real-time Price Sensitivity & Entry/Exit Matrix (Daily Trader Feature) -->
+                <div class="bg-dark-card border border-amber-500/30 rounded-2xl p-5 shadow-xl space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-dark-border/60 pb-3">
+                        <div>
+                            <h2 class="font-display font-bold text-sm text-amber-300 flex items-center gap-2">
+                                <span>🎯</span> Dynamic Real-Time Price Sensitivity & Entry/Exit Simulation
+                            </h2>
+                            <p class="text-[11px] text-slate-400">Bagaimana Skor Fundamental, Valuasi PER/PBV, Dividen, dan Action Verdict berubah jika harga pasar bergerak?</p>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs text-slate-400 font-mono">Simulasi Harga:</span>
+                            <input type="number" id="sim-price-input" placeholder="Rp harga..." class="w-32 bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1 text-xs text-white font-mono">
+                            <button id="sim-price-btn" class="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-dark-bg font-bold rounded-lg text-xs transition">Hitung Ulang</button>
+                        </div>
+                    </div>
+
+                    <!-- Sensitivity Scenarios Grid -->
+                    <div id="sensitivity-cards-container" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-center text-xs font-mono">
+                        <!-- Injected dynamically -->
+                    </div>
+                </div>
+
+                <!-- Banking Specific Panel (Conditional) -->
+                <div id="bank-panel" class="bg-dark-card border border-purple-500/30 rounded-2xl p-5 shadow-lg">
+                    <div class="flex items-center gap-2 mb-3">
+                        <span class="text-lg">🏦</span>
+                        <h2 class="font-display font-bold text-sm text-purple-300">Rasio Kesehatan Perbankan Khusus (Regulasi OJK & Bank Indonesia)</h2>
+                    </div>
+                    <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 text-center text-xs font-mono">
+                        <div class="bg-dark-bg/60 p-2.5 rounded-xl border border-dark-border">
+                            <div class="text-[11px] text-slate-400">CAR</div>
+                            <div id="b-car" class="text-base font-bold text-emerald-400 mt-0.5">26.8%</div>
+                            <div class="text-[9px] text-slate-500">Min 14%</div>
+                        </div>
+                        <div class="bg-dark-bg/60 p-2.5 rounded-xl border border-dark-border">
+                            <div class="text-[11px] text-slate-400">NPL Gross</div>
+                            <div id="b-npl-gross" class="text-base font-bold text-emerald-400 mt-0.5">2.95%</div>
+                            <div class="text-[9px] text-slate-500">Max 5%</div>
+                        </div>
+                        <div class="bg-dark-bg/60 p-2.5 rounded-xl border border-dark-border">
+                            <div class="text-[11px] text-slate-400">NPL Net</div>
+                            <div id="b-npl-net" class="text-base font-bold text-emerald-400 mt-0.5">0.75%</div>
+                            <div class="text-[9px] text-slate-500">Low Risk</div>
+                        </div>
+                        <div class="bg-dark-bg/60 p-2.5 rounded-xl border border-dark-border">
+                            <div class="text-[11px] text-slate-400">NIM</div>
+                            <div id="b-nim" class="text-base font-bold text-purple-400 mt-0.5">6.85%</div>
+                            <div class="text-[9px] text-slate-500">High Margin</div>
+                        </div>
+                        <div class="bg-dark-bg/60 p-2.5 rounded-xl border border-dark-border">
+                            <div class="text-[11px] text-slate-400">BOPO</div>
+                            <div id="b-bopo" class="text-base font-bold text-emerald-400 mt-0.5">66.8%</div>
+                            <div class="text-[9px] text-slate-500">Efficient</div>
+                        </div>
+                        <div class="bg-dark-bg/60 p-2.5 rounded-xl border border-dark-border">
+                            <div class="text-[11px] text-slate-400">CASA Ratio</div>
+                            <div id="b-casa" class="text-base font-bold text-cyan-400 mt-0.5">64.2%</div>
+                            <div class="text-[9px] text-slate-500">Low Cost Fund</div>
+                        </div>
+                        <div class="bg-dark-bg/60 p-2.5 rounded-xl border border-dark-border">
+                            <div class="text-[11px] text-slate-400">LDR</div>
+                            <div id="b-ldr" class="text-base font-bold text-slate-200 mt-0.5">87.2%</div>
+                            <div class="text-[9px] text-slate-500">Optimal 80-92%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 5-Axis Radar Score & AI Insights Split Section -->
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                    <!-- Radar & 5-Pillar Score Bars (5 cols) -->
+                    <div class="lg:col-span-5 bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl space-y-4">
+                        <div class="flex items-center justify-between">
+                            <h2 class="font-display font-bold text-base text-white flex items-center gap-2">
+                                <span>📊</span> 5-Pillars Score Breakdown
+                            </h2>
+                            <span class="text-xs font-mono text-slate-400">Weighted Model</span>
+                        </div>
+
+                        <!-- Progress Bars -->
+                        <div class="space-y-3.5 pt-2 font-mono text-xs">
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-amber-300">Valuation Attractiveness</span>
+                                    <span id="bar-val-txt" class="text-amber-400 font-bold">75 / 100</span>
+                                </div>
+                                <div class="w-full bg-dark-bg rounded-full h-2.5 overflow-hidden">
+                                    <div id="bar-val" class="bg-amber-500 h-2.5 rounded-full transition-all duration-500" style="width: 75%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-emerald-300">Profitability Power</span>
+                                    <span id="bar-prof-txt" class="text-emerald-400 font-bold">90 / 100</span>
+                                </div>
+                                <div class="w-full bg-dark-bg rounded-full h-2.5 overflow-hidden">
+                                    <div id="bar-prof" class="bg-emerald-500 h-2.5 rounded-full transition-all duration-500" style="width: 90%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-cyan-300">Financial Health & Solvency</span>
+                                    <span id="bar-health-txt" class="text-cyan-400 font-bold">88 / 100</span>
+                                </div>
+                                <div class="w-full bg-dark-bg rounded-full h-2.5 overflow-hidden">
+                                    <div id="bar-health" class="bg-cyan-500 h-2.5 rounded-full transition-all duration-500" style="width: 88%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-purple-300">Growth Momentum</span>
+                                    <span id="bar-growth-txt" class="text-purple-400 font-bold">70 / 100</span>
+                                </div>
+                                <div class="w-full bg-dark-bg rounded-full h-2.5 overflow-hidden">
+                                    <div id="bar-growth" class="bg-purple-500 h-2.5 rounded-full transition-all duration-500" style="width: 70%"></div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <div class="flex justify-between mb-1">
+                                    <span class="text-indigo-300">Cash Flow & Quality</span>
+                                    <span id="bar-cf-txt" class="text-indigo-400 font-bold">100 / 100</span>
+                                </div>
+                                <div class="w-full bg-dark-bg rounded-full h-2.5 overflow-hidden">
+                                    <div id="bar-cf" class="bg-indigo-500 h-2.5 rounded-full transition-all duration-500" style="width: 100%"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI Algorithmic Synthesis & Flags (7 cols) -->
+                    <div class="lg:col-span-7 bg-dark-card border border-dark-border rounded-2xl p-6 shadow-xl space-y-4">
+                        <div class="flex items-center justify-between border-b border-dark-border pb-3">
+                            <h2 class="font-display font-bold text-base text-white flex items-center gap-2">
+                                <span>🧠</span> AI / Algorithmic Fundamental Synthesis
+                            </h2>
+                            <span class="text-xs font-mono text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded border border-brand-500/20">Institutional Logic</span>
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                            <!-- Bull Cases -->
+                            <div class="bg-dark-bg/60 border border-emerald-500/20 rounded-xl p-4 space-y-2">
+                                <div class="text-xs font-bold uppercase text-emerald-400 flex items-center gap-1.5">
+                                    <span>🐂</span> Bull Case & Keunggulan
+                                </div>
+                                <ul id="list-bull-cases" class="space-y-1.5 text-xs text-slate-300">
+                                    <li class="flex items-start gap-1.5"><span class="text-emerald-400">✓</span> Efisiensi ekuitas prima dengan ROE solid 19.06%.</li>
+                                    <li class="flex items-start gap-1.5"><span class="text-emerald-400">✓</span> Piotroski F-Score istimewa (8/9).</li>
+                                    <li class="flex items-start gap-1.5"><span class="text-emerald-400">✓</span> Imbal hasil dividen tinggi (6.72%).</li>
+                                </ul>
+                            </div>
+
+                            <!-- Bear Cases -->
+                            <div class="bg-dark-bg/60 border border-rose-500/20 rounded-xl p-4 space-y-2">
+                                <div class="text-xs font-bold uppercase text-rose-400 flex items-center gap-1.5">
+                                    <span>🐻</span> Bear Case & Risiko
+                                </div>
+                                <ul id="list-bear-cases" class="space-y-1.5 text-xs text-slate-300">
+                                    <li class="flex items-start gap-1.5"><span class="text-rose-400">⚠</span> Struktur permodalan dan biaya provisi kredit.</li>
+                                </ul>
+                            </div>
+                        </div>
+
+                        <!-- Green & Red Flags List -->
+                        <div class="pt-2 space-y-2">
+                            <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Key Audit & Signal Flags:</div>
+                            <div id="badge-flags-container" class="flex flex-wrap gap-2">
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">✓ Quality of Earnings: CFO > NI</span>
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">✓ No Dilution</span>
+                                <span class="px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">✓ Strong Capital Buffer</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 2: PEER COMPARISON MATRIX -->
+        <!-- ========================================================================= -->
+        <section id="section-compare" class="tab-content hidden space-y-6">
+            <div class="bg-dark-card border border-dark-border p-5 rounded-2xl shadow-xl space-y-4">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h2 class="text-lg font-display font-bold text-white">⚖️ Peer Comparison Matrix</h2>
+                        <p class="text-xs text-slate-400">Bandingkan metrik fundamental & valuasi beberapa emiten secara side-by-side.</p>
+                    </div>
+
+                    <!-- Preset Peer Groups -->
+                    <div class="flex flex-wrap gap-2 text-xs font-mono">
+                        <span class="text-slate-400 text-xs py-1">Presets:</span>
+                        <button class="compare-preset px-3 py-1 bg-dark-surface border border-dark-border rounded-lg hover:border-brand-500 text-slate-200 hover:text-white transition" data-tickers="BBCA,BBRI,BMRI">Big 3 Banks</button>
+                        <button class="compare-preset px-3 py-1 bg-dark-surface border border-dark-border rounded-lg hover:border-brand-500 text-slate-200 hover:text-white transition" data-tickers="ADRO,PTBA,ITMG,UNTR">Energy & Coal</button>
+                        <button class="compare-preset px-3 py-1 bg-dark-surface border border-dark-border rounded-lg hover:border-brand-500 text-slate-200 hover:text-white transition" data-tickers="ICBP,INDF,KLBF,ASII">Consumer & Conglo</button>
+                    </div>
+                </div>
+
+                <!-- Custom Input Bar -->
+                <div class="flex items-center gap-2">
+                    <input type="text" id="compare-input" value="BBCA, BBRI, BMRI, ASII, ADRO" placeholder="Masukkan ticker dipisah koma (contoh: BBCA, BBRI, BMRI, ASII)" class="flex-1 bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-sm text-white placeholder-slate-500 uppercase font-mono">
+                    <button id="compare-run-btn" class="px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition shadow-md">
+                        Bandingkan
+                    </button>
+                </div>
+            </div>
+
+            <!-- Best In Class Champions Cards -->
+            <div id="compare-champions-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <!-- Injected dynamically -->
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl shadow-xl overflow-x-auto">
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="bg-dark-surface/80 border-b border-dark-border text-slate-300 font-sans uppercase text-[11px] tracking-wider">
+                        <tr>
+                            <th class="p-3.5">Ticker</th>
+                            <th class="p-3.5 text-right">Price (IDR)</th>
+                            <th class="p-3.5 text-right">PER (x)</th>
+                            <th class="p-3.5 text-right">PBV (x)</th>
+                            <th class="p-3.5 text-right">ROE (%)</th>
+                            <th class="p-3.5 text-right">DER (x)</th>
+                            <th class="p-3.5 text-center">Piotroski</th>
+                            <th class="p-3.5 text-right">Altman Z</th>
+                            <th class="p-3.5 text-right">Div Yield</th>
+                            <th class="p-3.5 text-right">Upside</th>
+                            <th class="p-3.5 text-center">Score</th>
+                            <th class="p-3.5 text-center">Grade</th>
+                            <th class="p-3.5 text-center">Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody id="compare-tbody" class="divide-y divide-dark-border">
+                        <!-- Injected dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 3: SCREENER & PRESETS -->
+        <!-- ========================================================================= -->
+        <section id="section-screener" class="tab-content hidden space-y-6">
+            <!-- Preset Selector Bar -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <button class="screener-preset-card active text-left p-4 rounded-2xl border transition-all duration-200 bg-brand-600/10 border-brand-500 text-white shadow-lg" data-preset="BUFFETT_MOAT">
+                    <div class="text-xl mb-1">🏰</div>
+                    <div class="font-display font-bold text-sm text-brand-300">Buffett Moat</div>
+                    <div class="text-[11px] text-slate-400 mt-1">ROE &gt;14%, DER &lt;1.0x, Piotroski &ge;6, FCF Positif.</div>
+                </button>
+                <button class="screener-preset-card text-left p-4 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="DIVIDEND_CASH_COW">
+                    <div class="text-xl mb-1">🐄</div>
+                    <div class="font-display font-bold text-sm text-purple-300">Dividend Cash Cow</div>
+                    <div class="text-[11px] text-slate-400 mt-1">Yield &gt;4.5%, Safe DPR &lt;80%, Safe Altman Z.</div>
+                </button>
+                <button class="screener-preset-card text-left p-4 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="GARP">
+                    <div class="text-xl mb-1">🚀</div>
+                    <div class="font-display font-bold text-sm text-emerald-300">GARP Growth</div>
+                    <div class="text-[11px] text-slate-400 mt-1">PEG &lt;1.2x, EPS Growth &gt;8%, ROE &gt;10%.</div>
+                </button>
+                <button class="screener-preset-card text-left p-4 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="DEEP_VALUE">
+                    <div class="text-xl mb-1">💎</div>
+                    <div class="font-display font-bold text-sm text-cyan-300">Deep Value</div>
+                    <div class="text-[11px] text-slate-400 mt-1">PBV &lt;1.5x, PER &lt;12x, Upside &gt;15%.</div>
+                </button>
+                <button class="screener-preset-card text-left p-4 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="MOMENTUM_QUALITY">
+                    <div class="text-xl mb-1">⚡</div>
+                    <div class="font-display font-bold text-sm text-amber-300">Momentum Quality</div>
+                    <div class="text-[11px] text-slate-400 mt-1">EPS Growth &gt;10%, Revenue &gt;6%, Piotroski &ge;6.</div>
+                </button>
+            </div>
+
+            <!-- Custom Filters Drawer / Accordion -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-lg space-y-4">
+                <div class="flex items-center justify-between">
+                    <h3 class="font-display font-bold text-sm text-white flex items-center gap-2">
+                        <span>⚙️</span> Kriteria Filter Kustom
+                    </h3>
+                    <div class="flex items-center gap-2">
+                        <button id="screener-export-csv" class="px-3 py-1.5 bg-dark-surface hover:bg-dark-border text-slate-300 rounded-lg text-xs font-mono transition flex items-center gap-1 border border-dark-border">
+                            <span>📥 Export CSV</span>
+                        </button>
+                        <button id="screener-filter-btn" class="px-4 py-1.5 bg-brand-600 hover:bg-brand-500 text-white rounded-lg text-xs font-bold transition shadow-md">
+                            Terapkan Filter
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-mono">
+                    <div>
+                        <label class="text-slate-400 block mb-1 text-[11px]">Min ROE (%)</label>
+                        <input type="number" id="f-min-roe" placeholder="e.g. 15" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1 text-[11px]">Max DER (x)</label>
+                        <input type="number" step="0.1" id="f-max-der" placeholder="e.g. 1.0" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1 text-[11px]">Min Piotroski (0-9)</label>
+                        <input type="number" id="f-min-pio" placeholder="e.g. 6" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1 text-[11px]">Min Div Yield (%)</label>
+                        <input type="number" id="f-min-div" placeholder="e.g. 4" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1 text-[11px]">Max PER (x)</label>
+                        <input type="number" id="f-max-pe" placeholder="e.g. 15" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                    </div>
+                    <div>
+                        <label class="text-slate-400 block mb-1 text-[11px]">Min Score (0-100)</label>
+                        <input type="number" id="f-min-score" placeholder="e.g. 70" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Screener Results Table -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl shadow-xl overflow-x-auto">
+                <div class="p-4 border-b border-dark-border flex items-center justify-between">
+                    <span id="screener-count-badge" class="text-xs font-mono font-bold text-brand-400">Menampilkan 5 Emiten Terpilih</span>
+                    <span class="text-[11px] text-slate-400">Diurutkan berdasarkan skor fundamental tertinggi</span>
+                </div>
+                <table class="w-full text-left text-xs font-mono">
+                    <thead class="bg-dark-surface/80 border-b border-dark-border text-slate-300 font-sans uppercase text-[11px] tracking-wider">
+                        <tr>
+                            <th class="p-3.5">#</th>
+                            <th class="p-3.5">Ticker</th>
+                            <th class="p-3.5">Company Name</th>
+                            <th class="p-3.5">Sector</th>
+                            <th class="p-3.5 text-right">Price</th>
+                            <th class="p-3.5 text-right">PER</th>
+                            <th class="p-3.5 text-right">PBV</th>
+                            <th class="p-3.5 text-right">ROE</th>
+                            <th class="p-3.5 text-right">DER</th>
+                            <th class="p-3.5 text-center">Piotroski</th>
+                            <th class="p-3.5 text-right">Div Yield</th>
+                            <th class="p-3.5 text-center">Score</th>
+                            <th class="p-3.5 text-center">Grade</th>
+                            <th class="p-3.5 text-center">Verdict</th>
+                        </tr>
+                    </thead>
+                    <tbody id="screener-tbody" class="divide-y divide-dark-border">
+                        <!-- Injected dynamically -->
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="border-t border-dark-border bg-dark-card/40 py-6 mt-12 text-center text-xs text-slate-400 font-mono">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div>
+                IDX KeyStats & Fundamental Engine • Standardized for Professional & Daily Traders
+            </div>
+            <div class="flex items-center gap-4 text-slate-400">
+                <span>FastAPI Backend</span>
+                <span>•</span>
+                <span>Multi-Model DCF/Graham</span>
+                <span>•</span>
+                <span>Piotroski & Altman Z</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Frontend Script -->
+    <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,71 @@
+/* Custom CSS Styling for IDX Trading Terminal */
+
+:root {
+    --brand-glow: rgba(99, 102, 241, 0.15);
+}
+
+body {
+    background-color: #0b0f19;
+    color: #f1f5f9;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: #0f172a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #475569;
+}
+
+/* Tab Switching Transitions */
+.tab-content {
+    animation: fadeIn 0.2s ease-in-out;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Glassmorphism Card Effects */
+.glass-card {
+    background: rgba(17, 24, 39, 0.85);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(51, 65, 85, 0.6);
+}
+
+.glass-card:hover {
+    border-color: rgba(99, 102, 241, 0.4);
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px -3px var(--brand-glow);
+}
+
+/* Pulsing Badge */
+@keyframes pulseGlow {
+    0%, 100% {
+        box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+    }
+}
+
+.pulse-glow {
+    animation: pulseGlow 2.5s infinite;
+}
