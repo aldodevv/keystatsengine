@@ -301,3 +301,70 @@ class TerminalRenderer:
             )
             
         console.print(table)
+
+    @staticmethod
+    def render_market_summary(resp):
+        from app.models.market import MarketSummaryResponse
+        stats = resp.stats
+        
+        # 1. Market Header Panel
+        stats_text = Text()
+        stats_text.append(f"📊 {resp.generated_at_desc}\n\n", style="bold cyan")
+        stats_text.append(f"• Total Emiten: {stats.total_emitens} | Undervalued: {stats.undervalued_count} | Overvalued: {stats.overvalued_count}\n", style="white")
+        stats_text.append(f"• Rata-rata Skor Komposit: {stats.avg_composite_score}/100 | Rata-rata ROE: {stats.avg_roe}%\n", style="white")
+        stats_text.append(f"• Rata-rata PER: {stats.avg_per}x | Rata-rata PBV: {stats.avg_pbv}x | Rata-rata Div Yield: {stats.avg_dividend_yield}%\n", style="white")
+        console.print(Panel(stats_text, title="[bold green]🏛️ IDX MARKET SUMMARY OVERVIEW[/bold green]", border_style="green", box=box.ROUNDED))
+
+        # 2. Top Picks Panels
+        console.print("\n[bold yellow]🎯 REKOMENDASI SAHAM UNGGULAN TERBAIK UNTUK ESOK HARI:[/bold yellow]")
+        rich_colors = {
+            "emerald": "green",
+            "cyan": "cyan",
+            "indigo": "blue",
+            "amber": "yellow",
+            "rose": "red"
+        }
+        for pick in resp.top_picks:
+            color = rich_colors.get(pick.badge_color, "cyan")
+            card = Text()
+            card.append(f"[{pick.category_tag}] ", style=f"bold {color}")
+            card.append(f"{pick.ticker} - {pick.name} ({pick.sector})\n", style="bold white")
+            card.append(f"Harga: Rp{pick.current_price:,.0f} ➔ Fair Value: Rp{pick.fair_value:,.0f} (Upside: {pick.upside_pct:+.1f}%)\n", style="bold")
+            card.append(f"Composite: {pick.composite_score} (Grade {pick.grade}) | {' | '.join(pick.key_metrics_summary)}\n", style="dim")
+            card.append(f"💡 Katalis: {pick.catalyst}\n", style="italic")
+            console.print(Panel(card, title=f"[bold]{pick.category_title}[/bold]", border_style=color, box=box.ROUNDED))
+
+        # 3. Full Emitens Table
+        table = Table(title="[bold]📋 Ringkasan Seluruh Emiten IDX[/bold]", box=box.SIMPLE_HEAVY)
+        table.add_column("#", justify="center")
+        table.add_column("Ticker", style="bold cyan")
+        table.add_column("Company Name")
+        table.add_column("Price (IDR)", justify="right")
+        table.add_column("PER", justify="right")
+        table.add_column("PBV", justify="right")
+        table.add_column("ROE", justify="right")
+        table.add_column("Upside %", justify="right")
+        table.add_column("F-Score", justify="center")
+        table.add_column("Div Yield", justify="right")
+        table.add_column("Score", justify="center")
+        table.add_column("Grade", justify="center")
+        
+        for idx, item in enumerate(resp.emitens, start=1):
+            score_style = "bold green" if item.composite_score >= 75 else "white"
+            upside_style = "green" if item.upside_pct >= 0 else "red"
+            table.add_row(
+                str(idx),
+                item.ticker,
+                item.name[:25],
+                f"Rp{item.current_price:,.0f}",
+                f"{item.per}x",
+                f"{item.pbv}x",
+                f"{item.roe}%",
+                f"[{upside_style}]{item.upside_pct:+.1f}%[/{upside_style}]",
+                f"{item.piotroski_f_score}/9",
+                f"{item.dividend_yield}%",
+                f"[{score_style}]{item.composite_score}[/{score_style}]",
+                item.grade
+            )
+        console.print(table)
+

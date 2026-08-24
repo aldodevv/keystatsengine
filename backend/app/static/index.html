@@ -71,7 +71,10 @@
 
             <!-- Tab Navigation Buttons -->
             <nav class="flex items-center bg-dark-bg/80 border border-dark-border p-1 rounded-xl">
-                <button id="tab-single" class="nav-tab active px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-white bg-brand-600 shadow-md">
+                <button id="tab-market" class="nav-tab active px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-white bg-brand-600 shadow-md">
+                    <span>📊 Market & Top Picks</span>
+                </button>
+                <button id="tab-single" class="nav-tab px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-slate-400 hover:text-white">
                     <span>🔍 Single Emiten</span>
                 </button>
                 <button id="tab-compare" class="nav-tab px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2 text-slate-400 hover:text-white">
@@ -99,9 +102,140 @@
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
         <!-- ========================================================================= -->
+        <!-- TAB 0: MARKET SUMMARY & REKOMENDASI TERBAIK ESOK HARI -->
+        <!-- ========================================================================= -->
+        <section id="section-market" class="tab-content block space-y-8">
+            <!-- Header Title & Subtitle -->
+            <div class="bg-gradient-to-r from-brand-600/20 via-indigo-600/10 to-cyan-500/10 border border-brand-500/30 rounded-3xl p-6 sm:p-8 shadow-2xl relative overflow-hidden">
+                <div class="absolute top-0 right-0 w-80 h-80 bg-brand-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div>
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="px-2.5 py-0.5 text-xs font-mono font-bold bg-brand-500/20 text-brand-300 border border-brand-500/40 rounded-full">QUANTITATIVE ALPHA ENGINE</span>
+                            <span id="market-generated-date" class="text-xs text-slate-400 font-mono">Update Pasar Hari Ini</span>
+                        </div>
+                        <h2 class="text-2xl sm:text-3xl font-display font-extrabold text-white tracking-tight">
+                            Rekomendasi Saham Terbaik & Ringkasan Pasar IDX
+                        </h2>
+                        <p class="text-sm text-slate-300 mt-1 max-w-2xl">
+                            Analisis fundamental kuantitatif terintegrasi (Multi-Model DCF, Graham, F-Score, Altman Z, Profitabilitas & Dividen) untuk menemukan saham terbaik untuk esok hari.
+                        </p>
+                    </div>
+                    <button id="refresh-market-btn" class="px-4 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold font-mono transition-all shadow-lg flex items-center gap-2 border border-brand-400/30">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span>Refresh Rekomendasi</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Market Overview Stats Cards -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-4 shadow-lg">
+                    <span class="text-slate-400 text-xs font-mono block">Total Emiten</span>
+                    <span id="m-stat-total" class="text-2xl font-bold font-mono text-white mt-1 block">-</span>
+                    <span class="text-[11px] text-slate-500">Emiten Dianalisis</span>
+                </div>
+                <div class="bg-dark-card border border-emerald-500/30 rounded-2xl p-4 shadow-lg">
+                    <span class="text-emerald-400 text-xs font-mono block">Undervalued</span>
+                    <span id="m-stat-undervalued" class="text-2xl font-bold font-mono text-emerald-400 mt-1 block">-</span>
+                    <span class="text-[11px] text-emerald-500/80">Potensi Diskon &gt; 5%</span>
+                </div>
+                <div class="bg-dark-card border border-rose-500/30 rounded-2xl p-4 shadow-lg">
+                    <span class="text-rose-400 text-xs font-mono block">Overvalued</span>
+                    <span id="m-stat-overvalued" class="text-2xl font-bold font-mono text-rose-400 mt-1 block">-</span>
+                    <span class="text-[11px] text-rose-500/80">Di Atas Fair Value</span>
+                </div>
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-4 shadow-lg">
+                    <span class="text-slate-400 text-xs font-mono block">Rata-rata Score</span>
+                    <span id="m-stat-avg-score" class="text-2xl font-bold font-mono text-cyan-400 mt-1 block">-</span>
+                    <span class="text-[11px] text-slate-500">Skor Komposit (0-100)</span>
+                </div>
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-4 shadow-lg">
+                    <span class="text-slate-400 text-xs font-mono block">Rata-rata ROE</span>
+                    <span id="m-stat-avg-roe" class="text-2xl font-bold font-mono text-indigo-400 mt-1 block">-</span>
+                    <span class="text-[11px] text-slate-500">Return on Equity</span>
+                </div>
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-4 shadow-lg">
+                    <span class="text-slate-400 text-xs font-mono block">Rata-rata Div Yield</span>
+                    <span id="m-stat-avg-div" class="text-2xl font-bold font-mono text-amber-400 mt-1 block">-</span>
+                    <span class="text-[11px] text-slate-500">Imbal Hasil Dividen</span>
+                </div>
+            </div>
+
+            <!-- SECTION: TOP PICKS FOR TOMORROW -->
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h3 class="text-lg sm:text-xl font-display font-bold text-white flex items-center gap-2">
+                            <span>🎯</span> Rekomendasi Saham Unggulan Esok Hari
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Pilihan emiten terbaik berdasarkan kriteria kuantitatif spesifik (Klik card untuk detail kalkulasi lengkap)</p>
+                    </div>
+                </div>
+
+                <!-- Top Picks Cards Container -->
+                <div id="top-picks-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <!-- Dynamic cards injected via JS -->
+                </div>
+            </div>
+
+            <!-- SECTION: ALL EMITENS SUMMARY TABLE -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl shadow-xl overflow-hidden space-y-4 p-5">
+                <div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <h3 class="font-display font-bold text-base text-white flex items-center gap-2">
+                            <span>📋</span> Ringkasan Fundamental Seluruh Emiten IDX
+                        </h3>
+                        <p class="text-xs text-slate-400 mt-0.5">Data komprehensif seluruh saham terdaftar dengan metrik valuasi, kesehatan finansial, dan scoring.</p>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <div class="relative min-w-[200px]">
+                            <input type="text" id="market-search-input" placeholder="Cari ticker / nama..." class="w-full bg-dark-bg border border-dark-border rounded-xl px-3 py-1.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono uppercase">
+                        </div>
+                        <select id="market-sector-filter" class="bg-dark-bg border border-dark-border rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-brand-500 font-mono">
+                            <option value="ALL">Semua Sektor</option>
+                        </select>
+                        <select id="market-sort-select" class="bg-dark-bg border border-dark-border rounded-xl px-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-brand-500 font-mono">
+                            <option value="score">Sort: Skor Tertinggi</option>
+                            <option value="upside">Sort: Upside % Tertinggi</option>
+                            <option value="roe">Sort: ROE Tertinggi</option>
+                            <option value="dividend">Sort: Div Yield Tertinggi</option>
+                            <option value="pe">Sort: PER Terendah</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto rounded-xl border border-dark-border">
+                    <table class="w-full text-left text-xs font-mono">
+                        <thead class="bg-dark-surface/90 border-b border-dark-border text-slate-300 font-sans uppercase text-[11px] tracking-wider">
+                            <tr>
+                                <th class="p-3.5">#</th>
+                                <th class="p-3.5">Ticker & Emiten</th>
+                                <th class="p-3.5">Sektor</th>
+                                <th class="p-3.5 text-right">Harga Saat Ini</th>
+                                <th class="p-3.5 text-right">PER</th>
+                                <th class="p-3.5 text-right">PBV</th>
+                                <th class="p-3.5 text-right">ROE</th>
+                                <th class="p-3.5 text-right">Upside %</th>
+                                <th class="p-3.5 text-center">F-Score</th>
+                                <th class="p-3.5 text-right">Div Yield</th>
+                                <th class="p-3.5 text-center">Composite</th>
+                                <th class="p-3.5 text-center">Grade</th>
+                                <th class="p-3.5 text-center">Aksi</th>
+                            </tr>
+                        </thead>
+                        <tbody id="market-tbody" class="divide-y divide-dark-border">
+                            <!-- Injected dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================================================= -->
         <!-- TAB 1: SINGLE EMITEN CALCULATION -->
         <!-- ========================================================================= -->
-        <section id="section-single" class="tab-content block space-y-6">
+        <section id="section-single" class="tab-content hidden space-y-6">
             <!-- Search & Quick Ticker Selector Bar -->
             <div class="bg-dark-card border border-dark-border p-4 rounded-2xl shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="flex-1 w-full relative">

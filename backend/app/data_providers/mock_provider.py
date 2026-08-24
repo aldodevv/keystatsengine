@@ -12,9 +12,19 @@ class MockDataProvider(BaseDataProvider):
     def __init__(self):
         self._dataset: Dict[str, RawKeyStats] = self._init_dataset()
 
-    def get_keystats(self, ticker: str) -> Optional[RawKeyStats]:
+    def get_keystats(
+        self,
+        ticker: str,
+        override_price: Optional[float] = None,
+        force_live: bool = False
+    ) -> Optional[RawKeyStats]:
         clean_ticker = ticker.upper().replace(".JK", "").strip()
-        return self._dataset.get(clean_ticker)
+        data = self._dataset.get(clean_ticker)
+        if data and override_price is not None and override_price > 0:
+            import copy
+            data = copy.deepcopy(data)
+            data.current_price = override_price
+        return data
 
     def list_all_tickers(self) -> List[str]:
         return list(self._dataset.keys())

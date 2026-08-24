@@ -89,6 +89,18 @@ def screen(
     TerminalRenderer.render_screener(resp)
 
 
+@app.command(name="summary")
+def summary():
+    """Market-wide fundamental overview, statistical aggregations & best stock picks for tomorrow."""
+    from app.services.market_summary_service import MarketSummaryService
+    market_service = MarketSummaryService(emiten_service)
+    
+    with console.status("[bold cyan]Analyzing all emitens & selecting top picks for tomorrow..."):
+        resp = market_service.get_market_summary()
+        
+    TerminalRenderer.render_market_summary(resp)
+
+
 @app.command(name="list")
 def list_emitens():
     """List all supported/cached IDX emitens."""

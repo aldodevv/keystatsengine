@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 1. Tab Navigation
     // -------------------------------------------------------------
     const tabs = {
+        'tab-market': 'section-market',
         'tab-single': 'section-single',
         'tab-compare': 'section-compare',
         'tab-screener': 'section-screener'
@@ -14,6 +15,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     Object.keys(tabs).forEach(tabId => {
         const btn = document.getElementById(tabId);
+        if (!btn) return;
         btn.addEventListener('click', () => {
             // Update Tab Styles
             document.querySelectorAll('.nav-tab').forEach(t => {
@@ -25,10 +27,15 @@ document.addEventListener('DOMContentLoaded', () => {
 
             // Show corresponding section
             document.querySelectorAll('.tab-content').forEach(s => s.classList.add('hidden'));
-            document.getElementById(tabs[tabId]).classList.remove('hidden');
+            const targetSection = document.getElementById(tabs[tabId]);
+            if (targetSection) {
+                targetSection.classList.remove('hidden');
+            }
 
             // Trigger fetch for tab if needed
-            if (tabId === 'tab-compare') {
+            if (tabId === 'tab-market') {
+                loadMarketSummary();
+            } else if (tabId === 'tab-compare') {
                 runComparison();
             } else if (tabId === 'tab-screener') {
                 runScreener('BUFFETT_MOAT');
@@ -407,11 +414,270 @@ document.addEventListener('DOMContentLoaded', () => {
         }).join('');
     }
 
+    // -------------------------------------------------------------
+    // 5. Market Summary & Daily Top Picks Logic
+    // -------------------------------------------------------------
+    let allMarketEmitens = [];
+    let currentMarketData = null;
+
+    async function loadMarketSummary() {
+        try {
+            const resp = await fetch('/api/v1/market/summary');
+            if (!resp.ok) {
+                console.error('Failed to fetch market summary');
+                return;
+            }
+            const data = await resp.json();
+            currentMarketData = data;
+            allMarketEmitens = data.emitens || [];
+
+            renderMarketOverview(data);
+        } catch (err) {
+            console.error('Error fetching market summary:', err);
+        }
+    }
+
+    function renderMarketOverview(data) {
+        if (!data) return;
+
+        // Date and Stats
+        const dateEl = document.getElementById('market-generated-date');
+        if (dateEl && data.generated_at_desc) {
+            dateEl.textContent = data.generated_at_desc;
+        }
+
+        const stats = data.stats;
+        if (stats) {
+            const elTotal = document.getElementById('m-stat-total');
+            const elUnder = document.getElementById('m-stat-undervalued');
+            const elOver = document.getElementById('m-stat-overvalued');
+            const elScore = document.getElementById('m-stat-avg-score');
+            const elRoe = document.getElementById('m-stat-avg-roe');
+            const elDiv = document.getElementById('m-stat-avg-div');
+
+            if (elTotal) elTotal.textContent = stats.total_emitens;
+            if (elUnder) elUnder.textContent = stats.undervalued_count;
+            if (elOver) elOver.textContent = stats.overvalued_count;
+            if (elScore) elScore.textContent = stats.avg_composite_score;
+            if (elRoe) elRoe.textContent = `${stats.avg_roe}%`;
+            if (elDiv) elDiv.textContent = `${stats.avg_dividend_yield}%`;
+        }
+
+        // Render Top Picks Cards
+        const topPicksContainer = document.getElementById('top-picks-container');
+        if (topPicksContainer && data.top_picks) {
+            const colorMap = {
+                emerald: {
+                    border: 'border-emerald-500/40 hover:border-emerald-400',
+                    bgGlow: 'bg-emerald-950/20',
+                    tagBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
+                    btnBg: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40',
+                    textAcc: 'text-emerald-400'
+                },
+                cyan: {
+                    border: 'border-cyan-500/40 hover:border-cyan-400',
+                    bgGlow: 'bg-cyan-950/20',
+                    tagBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
+                    btnBg: 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/40',
+                    textAcc: 'text-cyan-400'
+                },
+                indigo: {
+                    border: 'border-indigo-500/40 hover:border-indigo-400',
+                    bgGlow: 'bg-indigo-950/20',
+                    tagBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
+                    btnBg: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/40',
+                    textAcc: 'text-indigo-400'
+                },
+                amber: {
+                    border: 'border-amber-500/40 hover:border-amber-400',
+                    bgGlow: 'bg-amber-950/20',
+                    tagBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+                    btnBg: 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-900/40',
+                    textAcc: 'text-amber-400'
+                }
+            };
+
+            topPicksContainer.innerHTML = data.top_picks.map(pick => {
+                const c = colorMap[pick.badge_color] || colorMap.emerald;
+                const upsideSign = pick.upside_pct >= 0 ? '+' : '';
+                const upsideColor = pick.upside_pct >= 0 ? 'text-emerald-400' : 'text-rose-400';
+
+                return `
+                    <div class="bg-dark-card border ${c.border} rounded-2xl p-5 shadow-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl flex flex-col justify-between relative overflow-hidden ${c.bgGlow}">
+                        <div class="space-y-4">
+                            <!-- Category Badge -->
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full border ${c.tagBg}">
+                                    ${pick.category_tag}
+                                </span>
+                                <span class="px-2 py-0.5 text-xs font-mono font-bold rounded-lg bg-dark-bg border border-dark-border ${pick.grade.startsWith('A') ? 'text-emerald-400' : 'text-amber-400'}">
+                                    Grade ${pick.grade} (${pick.composite_score})
+                                </span>
+                            </div>
+
+                            <!-- Ticker & Company Name -->
+                            <div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-2xl font-display font-black text-white tracking-tight">${pick.ticker}</span>
+                                    <span class="text-xs text-slate-400 truncate max-w-[170px]">${pick.name}</span>
+                                </div>
+                                <span class="text-[11px] text-slate-500 font-mono">${pick.sector}</span>
+                            </div>
+
+                            <!-- Price vs Fair Value & Upside -->
+                            <div class="p-3 bg-dark-bg/80 border border-dark-border rounded-xl font-mono text-xs space-y-1.5">
+                                <div class="flex items-center justify-between text-slate-400">
+                                    <span>Harga Pasar:</span>
+                                    <span class="text-slate-100 font-bold">Rp ${Number(pick.current_price).toLocaleString('id-ID')}</span>
+                                </div>
+                                <div class="flex items-center justify-between text-slate-400">
+                                    <span>Nilai Wajar:</span>
+                                    <span class="${c.textAcc} font-bold">Rp ${Number(pick.fair_value).toLocaleString('id-ID')}</span>
+                                </div>
+                                <div class="flex items-center justify-between border-t border-dark-border pt-1">
+                                    <span class="text-slate-300 font-sans font-medium text-[11px]">Potensi Upside:</span>
+                                    <span class="${upsideColor} font-bold text-sm">${upsideSign}${pick.upside_pct.toFixed(1)}%</span>
+                                </div>
+                            </div>
+
+                            <!-- Key Metrics Pills -->
+                            <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
+                                ${pick.key_metrics_summary.map(m => `
+                                    <span class="px-2 py-0.5 rounded bg-dark-surface border border-dark-border text-slate-300">${m}</span>
+                                `).join('')}
+                            </div>
+
+                            <!-- Catalyst Paragraph -->
+                            <div class="text-xs text-slate-300 leading-relaxed bg-dark-bg/40 p-2.5 rounded-lg border border-dark-border/50">
+                                <span class="text-slate-400 font-medium block text-[10px] uppercase font-mono mb-1">💡 Katalis Esok Hari:</span>
+                                ${pick.catalyst}
+                            </div>
+                        </div>
+
+                        <!-- Action Button -->
+                        <div class="mt-4 pt-3 border-t border-dark-border">
+                            <button onclick="switchSingle('${pick.ticker}')" class="w-full py-2.5 px-4 rounded-xl ${c.btnBg} font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2">
+                                <span>🔍 Lihat Detail Analisis ${pick.ticker}</span>
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        // Populate Sector Filter Options
+        const sectorSelect = document.getElementById('market-sector-filter');
+        if (sectorSelect) {
+            const sectors = Array.from(new Set(allMarketEmitens.map(e => e.sector))).filter(Boolean).sort();
+            sectorSelect.innerHTML = '<option value="ALL">Semua Sektor</option>' + 
+                sectors.map(s => `<option value="${s}">${s}</option>`).join('');
+        }
+
+        // Render Table
+        renderMarketTable();
+    }
+
+    function renderMarketTable() {
+        const tbody = document.getElementById('market-tbody');
+        if (!tbody) return;
+
+        const searchQuery = (document.getElementById('market-search-input')?.value || '').trim().toUpperCase();
+        const selectedSector = document.getElementById('market-sector-filter')?.value || 'ALL';
+        const sortMode = document.getElementById('market-sort-select')?.value || 'score';
+
+        let filtered = allMarketEmitens.filter(it => {
+            const matchSearch = !searchQuery || it.ticker.includes(searchQuery) || it.name.toUpperCase().includes(searchQuery);
+            const matchSector = selectedSector === 'ALL' || it.sector === selectedSector;
+            return matchSearch && matchSector;
+        });
+
+        // Sorting
+        filtered.sort((a, b) => {
+            if (sortMode === 'score') return b.composite_score - a.composite_score;
+            if (sortMode === 'upside') return b.upside_pct - a.upside_pct;
+            if (sortMode === 'roe') return b.roe - a.roe;
+            if (sortMode === 'dividend') return b.dividend_yield - a.dividend_yield;
+            if (sortMode === 'pe') return (a.per || 999) - (b.per || 999);
+            return 0;
+        });
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="13" class="p-6 text-center text-slate-500 font-mono">
+                        Tidak ada emiten yang sesuai dengan kriteria pencarian.
+                    </td>
+                </tr>
+            `;
+            return;
+        }
+
+        tbody.innerHTML = filtered.map((item, idx) => {
+            const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
+            const scoreClass = item.composite_score >= 75 ? 'text-emerald-400 font-bold' : 'text-slate-200';
+            const upsideClass = item.upside_pct >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400';
+            const upsideSign = item.upside_pct >= 0 ? '+' : '';
+
+            return `
+                <tr class="hover:bg-dark-surface/40 transition">
+                    <td class="p-3.5 text-slate-500">${idx + 1}</td>
+                    <td class="p-3.5">
+                        <div class="flex items-center gap-2">
+                            <button onclick="switchSingle('${item.ticker}')" class="font-bold text-brand-300 hover:text-brand-200 hover:underline font-mono text-sm">
+                                ${item.ticker}
+                            </button>
+                            <span class="text-slate-300 truncate max-w-[150px] hidden sm:inline">${item.name}</span>
+                        </div>
+                    </td>
+                    <td class="p-3.5 text-slate-400">${item.sector}</td>
+                    <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
+                    <td class="p-3.5 text-right font-mono">${item.per}x</td>
+                    <td class="p-3.5 text-right font-mono">${item.pbv}x</td>
+                    <td class="p-3.5 text-right font-mono text-emerald-400">${item.roe}%</td>
+                    <td class="p-3.5 text-right font-mono ${upsideClass}">${upsideSign}${item.upside_pct ? item.upside_pct.toFixed(1) : '0.0'}%</td>
+                    <td class="p-3.5 text-center font-mono">${item.piotroski_f_score}/9</td>
+                    <td class="p-3.5 text-right font-mono text-amber-400">${item.dividend_yield}%</td>
+                    <td class="p-3.5 text-center font-mono ${scoreClass}">${item.composite_score}</td>
+                    <td class="p-3.5 text-center ${gradeClass}">${item.grade}</td>
+                    <td class="p-3.5 text-center">
+                        <button onclick="switchSingle('${item.ticker}')" class="px-2.5 py-1 rounded-lg bg-brand-600/20 hover:bg-brand-600 text-brand-300 hover:text-white border border-brand-500/30 text-xs font-sans transition">
+                            Analisis ➔
+                        </button>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
     window.switchSingle = function(ticker) {
-        document.getElementById('tab-single').click();
-        singleInput.value = ticker;
+        if (!ticker) return;
+        ticker = ticker.trim().toUpperCase();
+        
+        const singleTab = document.getElementById('tab-single');
+        if (singleTab) {
+            singleTab.click();
+        }
+        
+        if (singleInput) {
+            singleInput.value = ticker;
+        }
         loadSingleEmiten(ticker);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
     };
+
+    // Market filters & Search listeners
+    const marketSearch = document.getElementById('market-search-input');
+    if (marketSearch) marketSearch.addEventListener('input', renderMarketTable);
+
+    const marketSectorFilter = document.getElementById('market-sector-filter');
+    if (marketSectorFilter) marketSectorFilter.addEventListener('change', renderMarketTable);
+
+    const marketSortSelect = document.getElementById('market-sort-select');
+    if (marketSortSelect) marketSortSelect.addEventListener('change', renderMarketTable);
+
+    const refreshMarketBtn = document.getElementById('refresh-market-btn');
+    if (refreshMarketBtn) refreshMarketBtn.addEventListener('click', loadMarketSummary);
 
     document.querySelectorAll('.screener-preset-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -456,6 +722,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     });
 
-    // Initial load
+    // Initial load: Load Market Overview by default, and prepare BBRI in background
+    loadMarketSummary();
     loadSingleEmiten('BBRI');
 });
+
