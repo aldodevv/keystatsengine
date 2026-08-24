@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const simPriceBtn = document.getElementById('sim-price-btn');
     let currentActiveTicker = 'BBRI';
 
-    async function loadSingleEmiten(ticker, customPrice = null, forceLive = false) {
+    async function loadSingleEmiten(ticker, customPrice = null, forceLive = false, isSilent = false) {
         if (!ticker) return;
         ticker = ticker.trim().toUpperCase();
         currentActiveTicker = ticker;
@@ -66,14 +66,18 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const resp = await fetch(url);
             if (!resp.ok) {
-                alert(`Emiten '${ticker}' tidak ditemukan atau data belum tersedia.`);
+                if (!isSilent) {
+                    alert(`Emiten '${ticker}' tidak ditemukan atau data belum tersedia.`);
+                }
                 return;
             }
             const data = await resp.json();
             renderSingleEmiten(data);
         } catch (err) {
-            console.error(err);
-            alert('Gagal mengambil data emiten.');
+            console.error('Error loading single emiten:', err);
+            if (!isSilent) {
+                alert('Gagal mengambil data emiten.');
+            }
         }
     }
 
@@ -409,12 +413,14 @@ document.addEventListener('DOMContentLoaded', () => {
     let allMarketEmitens = [];
     let currentMarketData = null;
 
-    async function loadMarketSummary() {
+    async function loadMarketSummary(retryCount = 0) {
+        const topPicksContainer = document.getElementById('top-picks-container');
+        const tbody = document.getElementById('market-tbody');
+        
         try {
             const resp = await fetch('/api/v1/market/summary');
             if (!resp.ok) {
-                console.error('Failed to fetch market summary');
-                return;
+                throw new Error(`HTTP status ${resp.status}`);
             }
             const data = await resp.json();
             currentMarketData = data;
@@ -423,8 +429,36 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMarketOverview(data);
         } catch (err) {
             console.error('Error fetching market summary:', err);
+            // If server is waking up or deploying on Render, retry automatically
+            if (retryCount < 3) {
+                console.log(`Retrying market summary in 2s (attempt ${retryCount + 1})...`);
+                setTimeout(() => loadMarketSummary(retryCount + 1), 2000);
+                return;
+            }
+
+            if (topPicksContainer) {
+                topPicksContainer.innerHTML = `
+                    <div class="col-span-full bg-dark-card border border-brand-500/30 rounded-2xl p-6 text-center space-y-3">
+                        <div class="text-brand-400 text-sm font-bold">⚡ Menghubungkan ke Server Fundamental...</div>
+                        <p class="text-xs text-slate-400">Server sedang menyiapkan kalkulasi IDX. Klik tombol di bawah untuk memuat data.</p>
+                        <button onclick="loadMarketSummary(0)" class="px-4 py-2 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition shadow-md inline-flex items-center gap-2">
+                            <span>🔄 Muat Ulang Rekomendasi</span>
+                        </button>
+                    </div>
+                `;
+            }
+            if (tbody) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="13" class="p-6 text-center text-slate-400 font-mono text-xs">
+                            Server sedang memproses. Klik tombol "Update Rekomendasi" di atas untuk memuat ulang.
+                        </td>
+                    </tr>
+                `;
+            }
         }
     }
+    window.loadMarketSummary = loadMarketSummary;
 
     function renderMarketOverview(data) {
         if (!data) return;
@@ -711,8 +745,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.body.removeChild(link);
     });
 
-    // Initial load: Load Market Overview by default, and prepare BBRI in background
+    // Initial load: Load Market Overview by default, and prepare BBRI silently in background
     loadMarketSummary();
-    loadSingleEmiten('BBRI');
+    loadSingleEmiten('BBRI', null, false, true);
 });
 
