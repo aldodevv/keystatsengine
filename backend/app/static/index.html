@@ -568,14 +568,30 @@
         <!-- TAB 2: PEER COMPARISON MATRIX                                             -->
         <!-- ========================================================================= -->
         <section id="section-compare" class="tab-content hidden space-y-6">
-            <!-- Preset Quick Comparison Buttons -->
-            <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs font-mono">
-                <span class="text-slate-400 uppercase text-[11px] shrink-0">Preset Peer:</span>
-                <button class="compare-preset-btn px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-surface border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="BBCA,BBRI,BMRI,BBNI">🏦 Big 4 Banks</button>
-                <button class="compare-preset-btn px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-surface border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="ADRO,PTBA,ITMG">⚡ Coal Energy</button>
-                <button class="compare-preset-btn px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-surface border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="ICBP,INDF,UNVR">🛒 Consumer Staples</button>
-                <button class="compare-preset-btn px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-surface border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="TLKM,ISAT,EXCL">📡 Telco Operators</button>
-                <button class="compare-preset-btn px-3 py-1.5 rounded-lg bg-dark-card hover:bg-dark-surface border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="ASII,UNTR,INCO">🏭 Conglomerates & Mining</button>
+            <!-- Search & Presets Bar -->
+            <div class="bg-dark-card border border-dark-border p-4 rounded-2xl shadow-xl space-y-3">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <div class="flex-1 w-full relative">
+                        <input type="text" id="compare-input" value="BBCA, BBRI, BMRI, BBNI" placeholder="Ketik beberapa ticker dipisah koma (contoh: BBRI, BBCA, BMRI)..." class="w-full bg-dark-bg border border-dark-border rounded-xl px-4 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono uppercase">
+                    </div>
+                    <button id="compare-run-btn" class="w-full sm:w-auto px-5 py-2.5 bg-brand-600 hover:bg-brand-500 text-white rounded-xl text-xs font-bold transition shadow-md shrink-0">
+                        Bandingkan Emiten
+                    </button>
+                </div>
+                <!-- Preset Quick Comparison Buttons -->
+                <div class="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 text-xs font-mono">
+                    <span class="text-slate-400 uppercase text-[11px] shrink-0">Preset Peer:</span>
+                    <button class="compare-preset-btn px-3 py-1 rounded-lg bg-dark-surface hover:bg-dark-border border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="BBCA,BBRI,BMRI,BBNI">🏦 Big 4 Banks</button>
+                    <button class="compare-preset-btn px-3 py-1 rounded-lg bg-dark-surface hover:bg-dark-border border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="ADRO,PTBA,ITMG">⚡ Coal Energy</button>
+                    <button class="compare-preset-btn px-3 py-1 rounded-lg bg-dark-surface hover:bg-dark-border border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="ICBP,INDF,UNVR">🛒 Consumer Staples</button>
+                    <button class="compare-preset-btn px-3 py-1 rounded-lg bg-dark-surface hover:bg-dark-border border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="TLKM,ISAT,EXCL">📡 Telco Operators</button>
+                    <button class="compare-preset-btn px-3 py-1 rounded-lg bg-dark-surface hover:bg-dark-border border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-tickers="ASII,UNTR,INCO">🏭 Conglomerates & Mining</button>
+                </div>
+            </div>
+
+            <!-- Best-in-Class Champions Grid -->
+            <div id="compare-champions-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+                <!-- Injected dynamically -->
             </div>
 
             <!-- Comparison Table Container -->

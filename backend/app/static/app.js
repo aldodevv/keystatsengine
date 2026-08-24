@@ -1,8 +1,11 @@
 /**
  * Frontend JavaScript for IDX Emiten KeyStats & Scoring Engine
+ * Stockbit-Grade Fundamental Intelligence Terminal
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('KeyStats Engine Frontend Initializing...');
+
     // -------------------------------------------------------------
     // 1. Tab Navigation
     // -------------------------------------------------------------
@@ -82,65 +85,74 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function renderSingleEmiten(data) {
-        document.getElementById('r-ticker').textContent = data.ticker;
-        document.getElementById('r-name').textContent = data.name;
-        document.getElementById('r-sector').textContent = data.sector;
-        document.getElementById('r-industry').textContent = data.industry;
-        document.getElementById('r-price').textContent = `Rp ${Number(data.current_price).toLocaleString('id-ID')}`;
-        document.getElementById('r-market-cap').textContent = `Rp ${(data.market_cap / 1e12).toFixed(1)} T`;
+        if (!data) return;
+
+        const setTxt = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined && val !== null) el.textContent = val;
+        };
+
+        setTxt('r-ticker', data.ticker);
+        setTxt('r-name', data.name);
+        setTxt('r-sector', data.sector);
+        setTxt('r-industry', data.industry);
+        setTxt('r-price', `Rp ${Number(data.current_price).toLocaleString('id-ID')}`);
+        setTxt('r-market-cap', `Rp ${(data.market_cap / 1e12).toFixed(1)} T`);
 
         // Realtime Price Change %
         const priceChangeElem = document.getElementById('r-price-change');
         const pChange = data.price_change_pct || 0;
-        priceChangeElem.textContent = `(${pChange >= 0 ? '+' : ''}${pChange.toFixed(2)}%)`;
-        if (pChange >= 0) {
-            priceChangeElem.className = "text-sm font-semibold font-mono text-emerald-400";
-        } else {
-            priceChangeElem.className = "text-sm font-semibold font-mono text-rose-400";
+        if (priceChangeElem) {
+            priceChangeElem.textContent = `(${pChange >= 0 ? '+' : ''}${pChange.toFixed(2)}%)`;
+            priceChangeElem.className = pChange >= 0 ? "text-sm font-semibold font-mono text-brand-400" : "text-sm font-semibold font-mono text-rose-400";
         }
 
         // Upside Badge
-        const upside = data.valuation.upside_downside_pct;
+        const upside = data.valuation?.upside_downside_pct || 0;
         const upsideBadge = document.getElementById('r-upside-badge');
-        upsideBadge.textContent = `${upside > 0 ? '+' : ''}${upside.toFixed(1)}% Upside`;
-        if (upside > 0) {
-            upsideBadge.className = "text-xs font-sans font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
-        } else {
-            upsideBadge.className = "text-xs font-sans font-bold px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
+        if (upsideBadge) {
+            upsideBadge.textContent = `${upside > 0 ? '+' : ''}${upside.toFixed(1)}% Upside`;
+            upsideBadge.className = upside > 0 
+                ? "text-xs font-sans font-bold px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-400 border border-brand-500/30"
+                : "text-xs font-sans font-bold px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-400 border border-rose-500/30";
         }
 
         // Composite Score & Grade
-        document.getElementById('r-composite-score').textContent = data.composite_score;
+        setTxt('r-composite-score', data.composite_score);
         const gradeElem = document.getElementById('r-grade');
-        gradeElem.textContent = `GRADE ${data.grade}`;
-        if (['A+', 'A'].includes(data.grade)) {
-            gradeElem.className = "px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40";
-        } else if (data.grade === 'B') {
-            gradeElem.className = "px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-amber-500/20 text-amber-400 border border-amber-500/40";
-        } else {
-            gradeElem.className = "px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-rose-500/20 text-rose-400 border border-rose-500/40";
+        if (gradeElem) {
+            gradeElem.textContent = `GRADE ${data.grade}`;
+            if (['A+', 'A'].includes(data.grade)) {
+                gradeElem.className = "px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-brand-500/20 text-brand-400 border border-brand-500/40";
+            } else if (data.grade === 'B') {
+                gradeElem.className = "px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-amber-500/20 text-amber-400 border border-amber-500/40";
+            } else {
+                gradeElem.className = "px-2.5 py-0.5 text-xs font-bold font-mono rounded bg-rose-500/20 text-rose-400 border border-rose-500/40";
+            }
         }
 
         // Action Verdict
         const verdictBadge = document.getElementById('r-verdict-badge');
-        verdictBadge.textContent = data.verdict;
-        if (data.verdict === 'STRONG BUY' || data.verdict === 'BUY') {
-            verdictBadge.className = "mt-2 px-4 py-1.5 rounded-xl font-display font-extrabold text-sm tracking-wide bg-emerald-500 text-dark-bg shadow-lg shadow-emerald-500/30";
-        } else if (data.verdict === 'HOLD') {
-            verdictBadge.className = "mt-2 px-4 py-1.5 rounded-xl font-display font-extrabold text-sm tracking-wide bg-amber-500 text-dark-bg shadow-lg shadow-amber-500/30";
-        } else {
-            verdictBadge.className = "mt-2 px-4 py-1.5 rounded-xl font-display font-extrabold text-sm tracking-wide bg-rose-500 text-white shadow-lg shadow-rose-500/30";
+        if (verdictBadge) {
+            verdictBadge.textContent = data.verdict;
+            if (data.verdict === 'STRONG BUY' || data.verdict === 'BUY') {
+                verdictBadge.className = "mt-2 px-3.5 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm tracking-wide bg-brand-600 text-white shadow-lg shadow-brand-600/30";
+            } else if (data.verdict === 'HOLD') {
+                verdictBadge.className = "mt-2 px-3.5 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm tracking-wide bg-amber-500 text-dark-bg shadow-lg shadow-amber-500/30";
+            } else {
+                verdictBadge.className = "mt-2 px-3.5 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm tracking-wide bg-rose-500 text-white shadow-lg shadow-rose-500/30";
+            }
         }
-        document.getElementById('r-fair-value-text').textContent = `Target: Rp ${Number(data.valuation.average_fair_value).toLocaleString('id-ID')}`;
+        setTxt('r-fair-value-text', `Target: Rp ${Number(data.valuation?.average_fair_value || 0).toLocaleString('id-ID')}`);
 
         // Sensitivity Matrix Scenarios
         const sensContainer = document.getElementById('sensitivity-cards-container');
-        if (data.price_sensitivity_scenarios && data.price_sensitivity_scenarios.length > 0) {
+        if (sensContainer && data.price_sensitivity_scenarios) {
             sensContainer.innerHTML = data.price_sensitivity_scenarios.map(sc => {
                 const isBase = sc.price_change_pct === 0.0;
                 const borderClass = isBase ? 'border-brand-500 bg-brand-500/10 shadow-lg ring-1 ring-brand-500/40' : 'border-dark-border bg-dark-bg/60 hover:border-slate-500';
                 const label = isBase ? 'HARGA SEKARANG' : `${sc.price_change_pct > 0 ? '+' : ''}${sc.price_change_pct}%`;
-                const verdictCol = sc.verdict === 'STRONG BUY' || sc.verdict === 'BUY' ? 'text-emerald-400' : (sc.verdict === 'HOLD' ? 'text-amber-400' : 'text-rose-400');
+                const verdictCol = sc.verdict === 'STRONG BUY' || sc.verdict === 'BUY' ? 'text-brand-400' : (sc.verdict === 'HOLD' ? 'text-amber-400' : 'text-rose-400');
 
                 return `
                     <div class="p-2.5 rounded-xl border ${borderClass} transition cursor-pointer" onclick="simulatePrice(${sc.simulated_price})">
@@ -156,55 +168,57 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // Pillar 1: Valuation
-        document.getElementById('p-val-score').textContent = `${data.radar.valuation}/100`;
-        document.getElementById('r-per').textContent = `${data.valuation.per}x`;
-        document.getElementById('r-pbv').textContent = `${data.valuation.pbv}x`;
-        document.getElementById('r-ev-ebitda').textContent = `${data.valuation.ev_ebitda}x`;
-        document.getElementById('r-peg').textContent = data.valuation.peg_ratio ? `${data.valuation.peg_ratio}x` : 'N/A';
-        document.getElementById('r-graham').textContent = data.valuation.graham_number ? `Rp ${Number(data.valuation.graham_number).toLocaleString('id-ID')}` : 'N/A';
-        document.getElementById('r-dcf').textContent = data.valuation.dcf_fair_value ? `Rp ${Number(data.valuation.dcf_fair_value).toLocaleString('id-ID')}` : 'N/A';
-        document.getElementById('r-avg-fair').textContent = `Rp ${Number(data.valuation.average_fair_value).toLocaleString('id-ID')}`;
+        setTxt('p-val-score', `${data.radar?.valuation || 0}/100`);
+        setTxt('r-per', `${data.valuation?.per || 0}x`);
+        setTxt('r-pbv', `${data.valuation?.pbv || 0}x`);
+        setTxt('r-ev-ebitda', `${data.valuation?.ev_ebitda || 0}x`);
+        setTxt('r-peg', data.valuation?.peg_ratio ? `${data.valuation.peg_ratio}x` : 'N/A');
+        setTxt('r-graham', data.valuation?.graham_number ? `Rp ${Number(data.valuation.graham_number).toLocaleString('id-ID')}` : 'N/A');
+        setTxt('r-dcf', data.valuation?.dcf_fair_value ? `Rp ${Number(data.valuation.dcf_fair_value).toLocaleString('id-ID')}` : 'N/A');
+        setTxt('r-avg-fair', `Rp ${Number(data.valuation?.average_fair_value || 0).toLocaleString('id-ID')}`);
 
         // Pillar 2: Profitability
-        document.getElementById('p-prof-score').textContent = `${data.radar.profitability}/100`;
-        document.getElementById('r-roe').textContent = `${data.profitability.roe}%`;
-        document.getElementById('r-roa').textContent = `${data.profitability.roa}%`;
-        document.getElementById('r-roic').textContent = `${data.profitability.roic}%`;
-        document.getElementById('r-gpm').textContent = `${data.profitability.gpm}%`;
-        document.getElementById('r-npm').textContent = `${data.profitability.npm}%`;
-        document.getElementById('r-dupont-ato').textContent = `${data.profitability.dupont_asset_turnover}x`;
-        document.getElementById('r-dupont-em').textContent = `${data.profitability.dupont_equity_multiplier}x`;
+        setTxt('p-prof-score', `${data.radar?.profitability || 0}/100`);
+        setTxt('r-roe', `${data.profitability?.roe || 0}%`);
+        setTxt('r-roa', `${data.profitability?.roa || 0}%`);
+        setTxt('r-roic', `${data.profitability?.roic || 0}%`);
+        setTxt('r-gpm', `${data.profitability?.gpm || 0}%`);
+        setTxt('r-npm', `${data.profitability?.npm || 0}%`);
+        setTxt('r-dupont-ato', `${data.profitability?.dupont_asset_turnover || 0}x`);
+        setTxt('r-dupont-em', `${data.profitability?.dupont_equity_multiplier || 0}x`);
 
         // Pillar 3: Health & Solvency
-        document.getElementById('p-health-score').textContent = `${data.radar.financial_health}/100`;
-        document.getElementById('r-der').textContent = `${data.solvency.der}x`;
-        document.getElementById('r-net-der').textContent = `${data.solvency.net_debt_to_equity}x`;
-        document.getElementById('r-altman').textContent = `${data.solvency.altman_z_score} (${data.solvency.altman_zone})`;
-        document.getElementById('r-piotroski').textContent = `${data.quality.piotroski_f_score} / 9`;
-        document.getElementById('r-current-ratio').textContent = `${data.liquidity.current_ratio}x`;
-        document.getElementById('r-cfo-ratio').textContent = `${data.quality.cfo_to_net_income}x`;
+        setTxt('p-health-score', `${data.radar?.financial_health || 0}/100`);
+        setTxt('r-der', `${data.solvency?.der || 0}x`);
+        setTxt('r-net-der', `${data.solvency?.net_debt_to_equity || 0}x`);
+        setTxt('r-altman', `${data.solvency?.altman_z_score || 0} (${data.solvency?.altman_zone || 'SAFE'})`);
+        setTxt('r-piotroski', `${data.quality?.piotroski_f_score || 0} / 9`);
+        setTxt('r-current-ratio', `${data.liquidity?.current_ratio || 0}x`);
+        setTxt('r-cfo-ratio', `${data.quality?.cfo_to_net_income || 0}x`);
+        setTxt('r-quality-badge', data.quality?.piotroski_f_score >= 7 ? 'PRISTINE' : 'ADEQUATE');
 
         // Pillar 4: Cash Flow & Dividend
-        document.getElementById('p-cf-score').textContent = `${data.radar.cash_flow_quality}/100`;
-        document.getElementById('r-fcf').textContent = `Rp ${(data.cash_flow_dividend.fcf / 1e12).toFixed(1)} T`;
-        document.getElementById('r-fcf-yield').textContent = `${data.cash_flow_dividend.fcf_yield}%`;
-        document.getElementById('r-div-yield').textContent = `${data.cash_flow_dividend.dividend_yield}%`;
-        document.getElementById('r-dpr').textContent = `${data.cash_flow_dividend.dpr}%`;
-        document.getElementById('r-rev-growth').textContent = `${data.growth.revenue_growth_yoy > 0 ? '+' : ''}${data.growth.revenue_growth_yoy}%`;
-        document.getElementById('r-eps-growth').textContent = `${data.growth.eps_growth_yoy > 0 ? '+' : ''}${data.growth.eps_growth_yoy}%`;
+        setTxt('p-cf-score', `${data.radar?.cash_flow_quality || 0}/100`);
+        setTxt('r-fcf', `Rp ${((data.cash_flow_dividend?.fcf || 0) / 1e12).toFixed(1)} T`);
+        setTxt('r-fcf-yield', `${data.cash_flow_dividend?.fcf_yield || 0}%`);
+        setTxt('r-div-yield', `${data.cash_flow_dividend?.dividend_yield || 0}%`);
+        setTxt('r-dpr', `${data.cash_flow_dividend?.dpr || 0}%`);
+        setTxt('r-rev-growth', `${(data.growth?.revenue_growth_yoy || 0) > 0 ? '+' : ''}${data.growth?.revenue_growth_yoy || 0}%`);
+        setTxt('r-eps-growth', `${(data.growth?.eps_growth_yoy || 0) > 0 ? '+' : ''}${data.growth?.eps_growth_yoy || 0}%`);
+        setTxt('r-div-safe', (data.cash_flow_dividend?.dpr || 0) <= 80 ? 'SUSTAINABLE' : 'HIGH PAYOUT');
 
         // Bank Panel
         const bankPanel = document.getElementById('bank-panel');
         if (bankPanel) {
             if (data.bank_metrics && data.bank_metrics.is_bank) {
                 bankPanel.classList.remove('hidden');
-                if (document.getElementById('b-car')) document.getElementById('b-car').textContent = `${data.bank_metrics.car}%`;
-                if (document.getElementById('b-npl-gross')) document.getElementById('b-npl-gross').textContent = `${data.bank_metrics.npl_gross}%`;
-                if (document.getElementById('b-npl-net')) document.getElementById('b-npl-net').textContent = `${data.bank_metrics.npl_net}%`;
-                if (document.getElementById('b-nim')) document.getElementById('b-nim').textContent = `${data.bank_metrics.nim}%`;
-                if (document.getElementById('b-cir')) document.getElementById('b-cir').textContent = `${data.bank_metrics.cost_to_income}%`;
-                if (document.getElementById('b-casa')) document.getElementById('b-casa').textContent = `${data.bank_metrics.casa_ratio}%`;
-                if (document.getElementById('b-ldr')) document.getElementById('b-ldr').textContent = `${data.bank_metrics.ldr}%`;
+                setTxt('b-car', `${data.bank_metrics.car}%`);
+                setTxt('b-npl-gross', `${data.bank_metrics.npl_gross}%`);
+                setTxt('b-npl-net', `${data.bank_metrics.npl_net}%`);
+                setTxt('b-nim', `${data.bank_metrics.nim}%`);
+                setTxt('b-cir', `${data.bank_metrics.cost_to_income}%`);
+                setTxt('b-casa', `${data.bank_metrics.casa_ratio}%`);
+                setTxt('b-ldr', `${data.bank_metrics.ldr}%`);
             } else {
                 bankPanel.classList.add('hidden');
             }
@@ -227,10 +241,17 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    searchBtn.addEventListener('click', () => loadSingleEmiten(singleInput.value));
-    singleInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') loadSingleEmiten(singleInput.value);
-    });
+    if (searchBtn) {
+        searchBtn.addEventListener('click', () => {
+            if (singleInput) loadSingleEmiten(singleInput.value);
+        });
+    }
+
+    if (singleInput) {
+        singleInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') loadSingleEmiten(singleInput.value);
+        });
+    }
 
     if (refreshLiveBtn) {
         refreshLiveBtn.addEventListener('click', () => {
@@ -240,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (simPriceBtn) {
         simPriceBtn.addEventListener('click', () => {
-            const p = parseFloat(simPriceInput.value);
+            const p = parseFloat(simPriceInput ? simPriceInput.value : 0);
             if (p > 0) loadSingleEmiten(currentActiveTicker, p);
         });
     }
@@ -261,8 +282,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     document.querySelectorAll('.quick-chip').forEach(chip => {
         chip.addEventListener('click', () => {
-            singleInput.value = chip.textContent.trim();
-            loadSingleEmiten(chip.textContent.trim());
+            const t = chip.textContent.trim();
+            if (singleInput) singleInput.value = t;
+            loadSingleEmiten(t);
         });
     });
 
@@ -273,7 +295,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const compareRunBtn = document.getElementById('compare-run-btn');
 
     async function runComparison(customTickers) {
-        const raw = customTickers || compareInput.value;
+        const raw = customTickers || (compareInput ? compareInput.value : 'BBCA,BBRI,BMRI,BBNI');
         const tickers = raw.split(',').map(s => s.trim().toUpperCase()).filter(Boolean);
         if (!tickers.length) return;
 
@@ -283,70 +305,80 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ tickers })
             });
+            if (!resp.ok) return;
             const data = await resp.json();
             renderComparison(data);
         } catch (err) {
-            console.error(err);
+            console.error('Error running comparison:', err);
         }
     }
 
     function renderComparison(data) {
+        if (!data) return;
+
         // Champions cards
         const champContainer = document.getElementById('compare-champions-container');
-        const labels = {
-            'cheapest_pe': { name: 'Cheapest P/E', icon: '💰', color: 'amber' },
-            'cheapest_pbv': { name: 'Cheapest P/B', icon: '🏷️', color: 'yellow' },
-            'highest_roe': { name: 'Highest ROE', icon: '🚀', color: 'emerald' },
-            'highest_dividend_yield': { name: 'Top Dividend', icon: '💵', color: 'purple' },
-            'highest_piotroski_f': { name: 'Top Quality F', icon: '⭐', color: 'cyan' },
-            'overall_champion': { name: 'Overall Leader', icon: '🏆', color: 'emerald' }
-        };
+        if (champContainer && data.best_in_class) {
+            const labels = {
+                'cheapest_pe': { name: 'Cheapest P/E', icon: '💰' },
+                'cheapest_pbv': { name: 'Cheapest P/B', icon: '🏷️' },
+                'highest_roe': { name: 'Highest ROE', icon: '🚀' },
+                'highest_dividend_yield': { name: 'Top Dividend', icon: '💵' },
+                'highest_piotroski_f': { name: 'Top Quality F', icon: '⭐' },
+                'overall_champion': { name: 'Overall Leader', icon: '🏆' }
+            };
 
-        champContainer.innerHTML = Object.keys(data.best_in_class).map(key => {
-            const info = labels[key] || { name: key, icon: '✨', color: 'blue' };
-            const ticker = data.best_in_class[key];
-            return `
-                <div class="bg-dark-card border border-dark-border p-3 rounded-xl shadow text-center">
-                    <div class="text-xs text-slate-400 flex items-center justify-center gap-1">${info.icon} ${info.name}</div>
-                    <div class="text-lg font-display font-black text-white mt-1">${ticker}</div>
-                </div>
-            `;
-        }).join('');
+            champContainer.innerHTML = Object.keys(data.best_in_class).map(key => {
+                const info = labels[key] || { name: key, icon: '✨' };
+                const ticker = data.best_in_class[key];
+                return `
+                    <div class="bg-dark-card border border-dark-border p-3 rounded-xl shadow text-center">
+                        <div class="text-xs text-slate-400 flex items-center justify-center gap-1">${info.icon} ${info.name}</div>
+                        <div class="text-lg font-mono font-extrabold text-white mt-1">${ticker}</div>
+                    </div>
+                `;
+            }).join('');
+        }
 
         // Table Rows
         const tbody = document.getElementById('compare-tbody');
-        tbody.innerHTML = data.items.map(item => {
-            const isWinner = data.best_in_class['overall_champion'] === item.ticker;
-            const scoreClass = isWinner ? 'bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/30' : 'text-slate-200';
-            const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
+        if (tbody && data.items) {
+            tbody.innerHTML = data.items.map(item => {
+                const isWinner = data.best_in_class && data.best_in_class['overall_champion'] === item.ticker;
+                const scoreClass = isWinner ? 'bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30' : 'text-slate-200';
+                const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-brand-400 font-bold' : 'text-amber-400 font-bold';
 
-            return `
-                <tr class="hover:bg-dark-surface/40 transition">
-                    <td class="p-3.5 font-bold text-white flex items-center gap-1.5">
-                        <span class="px-2 py-0.5 rounded bg-brand-600/20 border border-brand-500/30 text-brand-300">${item.ticker}</span>
-                        ${isWinner ? '👑' : ''}
-                    </td>
-                    <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
-                    <td class="p-3.5 text-right font-mono ${data.best_in_class['cheapest_pe'] === item.ticker ? 'text-emerald-400 font-bold' : ''}">${item.per}x</td>
-                    <td class="p-3.5 text-right font-mono ${data.best_in_class['cheapest_pbv'] === item.ticker ? 'text-emerald-400 font-bold' : ''}">${item.pbv}x</td>
-                    <td class="p-3.5 text-right font-mono ${data.best_in_class['highest_roe'] === item.ticker ? 'text-emerald-400 font-bold' : ''}">${item.roe}%</td>
-                    <td class="p-3.5 text-right font-mono">${item.der}x</td>
-                    <td class="p-3.5 text-center font-mono ${data.best_in_class['highest_piotroski_f'] === item.ticker ? 'text-emerald-400 font-bold' : ''}">${item.piotroski_f_score}/9</td>
-                    <td class="p-3.5 text-right font-mono">${item.altman_z_score}</td>
-                    <td class="p-3.5 text-right font-mono ${data.best_in_class['highest_dividend_yield'] === item.ticker ? 'text-purple-400 font-bold' : ''}">${item.dividend_yield}%</td>
-                    <td class="p-3.5 text-right font-mono ${item.upside_pct > 0 ? 'text-emerald-400' : 'text-rose-400'}">${item.upside_pct > 0 ? '+' : ''}${item.upside_pct}%</td>
-                    <td class="p-3.5 text-center"><span class="px-2 py-0.5 rounded ${scoreClass}">${item.composite_score}</span></td>
-                    <td class="p-3.5 text-center ${gradeClass}">${item.grade}</td>
-                    <td class="p-3.5 text-center"><span class="px-2 py-0.5 text-[10px] rounded bg-dark-surface border border-dark-border text-slate-300">${item.verdict}</span></td>
-                </tr>
-            `;
-        }).join('');
+                return `
+                    <tr class="hover:bg-dark-surface/40 transition">
+                        <td class="p-3.5 font-bold text-white flex items-center gap-1.5 font-mono">
+                            <span class="px-2 py-0.5 rounded bg-brand-600/20 border border-brand-500/30 text-brand-300">${item.ticker}</span>
+                            ${isWinner ? '👑' : ''}
+                        </td>
+                        <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
+                        <td class="p-3.5 text-right font-mono">${item.per}x</td>
+                        <td class="p-3.5 text-right font-mono">${item.pbv}x</td>
+                        <td class="p-3.5 text-right font-mono text-brand-400">${item.roe}%</td>
+                        <td class="p-3.5 text-right font-mono">${item.der}x</td>
+                        <td class="p-3.5 text-center font-mono">${item.piotroski_f_score}/9</td>
+                        <td class="p-3.5 text-right font-mono">${item.altman_z_score}</td>
+                        <td class="p-3.5 text-right font-mono text-purple-400">${item.dividend_yield}%</td>
+                        <td class="p-3.5 text-right font-mono ${item.upside_pct > 0 ? 'text-brand-400' : 'text-rose-400'}">${item.upside_pct > 0 ? '+' : ''}${item.upside_pct}%</td>
+                        <td class="p-3.5 text-center"><span class="px-2 py-0.5 rounded ${scoreClass}">${item.composite_score}</span></td>
+                        <td class="p-3.5 text-center ${gradeClass}">${item.grade}</td>
+                        <td class="p-3.5 text-center"><span class="px-2 py-0.5 text-[10px] rounded bg-dark-surface border border-dark-border text-slate-300">${item.verdict}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
     }
 
-    compareRunBtn.addEventListener('click', () => runComparison());
-    document.querySelectorAll('.compare-preset').forEach(btn => {
+    if (compareRunBtn) {
+        compareRunBtn.addEventListener('click', () => runComparison());
+    }
+
+    document.querySelectorAll('.compare-preset-btn').forEach(btn => {
         btn.addEventListener('click', () => {
-            compareInput.value = btn.dataset.tickers;
+            if (compareInput) compareInput.value = btn.dataset.tickers;
             runComparison(btn.dataset.tickers);
         });
     });
@@ -368,43 +400,51 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
+            if (!resp.ok) return;
             const data = await resp.json();
             currentScreenerResults = data.results || [];
             renderScreener(data);
         } catch (err) {
-            console.error(err);
+            console.error('Error running screener:', err);
         }
     }
 
     function renderScreener(data) {
-        document.getElementById('screener-count-badge').textContent = `Menampilkan ${data.total_matched} Emiten Terpilih (${data.applied_preset || 'CUSTOM'})`;
+        if (!data) return;
+
+        const countBadge = document.getElementById('screener-count-badge');
+        if (countBadge) {
+            countBadge.textContent = `Menampilkan ${data.total_matched} Emiten Terpilih (${data.applied_preset || 'CUSTOM'})`;
+        }
+
         const tbody = document.getElementById('screener-tbody');
+        if (tbody && data.results) {
+            tbody.innerHTML = data.results.map((item, idx) => {
+                const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-brand-400 font-bold' : 'text-amber-400 font-bold';
+                const scoreClass = item.composite_score >= 75 ? 'text-brand-400 font-bold' : 'text-slate-200';
 
-        tbody.innerHTML = data.results.map((item, idx) => {
-            const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
-            const scoreClass = item.composite_score >= 75 ? 'text-emerald-400 font-bold' : 'text-slate-200';
-
-            return `
-                <tr class="hover:bg-dark-surface/40 transition">
-                    <td class="p-3.5 text-slate-500">${idx + 1}</td>
-                    <td class="p-3.5 font-bold text-brand-300">
-                        <button class="hover:underline font-mono" onclick="switchSingle('${item.ticker}')">${item.ticker}</button>
-                    </td>
-                    <td class="p-3.5 text-slate-300 truncate max-w-[200px]">${item.name}</td>
-                    <td class="p-3.5 text-slate-400">${item.sector}</td>
-                    <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
-                    <td class="p-3.5 text-right font-mono">${item.per}x</td>
-                    <td class="p-3.5 text-right font-mono">${item.pbv}x</td>
-                    <td class="p-3.5 text-right font-mono text-emerald-400">${item.roe}%</td>
-                    <td class="p-3.5 text-right font-mono">${item.der}x</td>
-                    <td class="p-3.5 text-center font-mono">${item.piotroski_f_score}/9</td>
-                    <td class="p-3.5 text-right font-mono text-purple-400">${item.dividend_yield}%</td>
-                    <td class="p-3.5 text-center font-mono ${scoreClass}">${item.composite_score}</td>
-                    <td class="p-3.5 text-center ${gradeClass}">${item.grade}</td>
-                    <td class="p-3.5 text-center"><span class="px-2 py-0.5 text-[10px] rounded bg-dark-surface border border-dark-border text-slate-300">${item.verdict}</span></td>
-                </tr>
-            `;
-        }).join('');
+                return `
+                    <tr class="hover:bg-dark-surface/40 transition">
+                        <td class="p-3.5 text-slate-500">${idx + 1}</td>
+                        <td class="p-3.5 font-bold text-brand-300 font-mono">
+                            <button class="hover:underline" onclick="switchSingle('${item.ticker}')">${item.ticker}</button>
+                        </td>
+                        <td class="p-3.5 text-slate-300 truncate max-w-[200px]">${item.name}</td>
+                        <td class="p-3.5 text-slate-400">${item.sector}</td>
+                        <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
+                        <td class="p-3.5 text-right font-mono">${item.per}x</td>
+                        <td class="p-3.5 text-right font-mono">${item.pbv}x</td>
+                        <td class="p-3.5 text-right font-mono text-brand-400">${item.roe}%</td>
+                        <td class="p-3.5 text-right font-mono">${item.der}x</td>
+                        <td class="p-3.5 text-center font-mono">${item.piotroski_f_score}/9</td>
+                        <td class="p-3.5 text-right font-mono text-purple-400">${item.dividend_yield}%</td>
+                        <td class="p-3.5 text-center font-mono ${scoreClass}">${item.composite_score}</td>
+                        <td class="p-3.5 text-center ${gradeClass}">${item.grade}</td>
+                        <td class="p-3.5 text-center"><span class="px-2 py-0.5 text-[10px] rounded bg-dark-surface border border-dark-border text-slate-300">${item.verdict}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
     }
 
     // -------------------------------------------------------------
@@ -429,7 +469,7 @@ document.addEventListener('DOMContentLoaded', () => {
             renderMarketOverview(data);
         } catch (err) {
             console.error('Error fetching market summary:', err);
-            // If server is waking up or deploying on Render, retry automatically
+            // Auto retry if server is waking up
             if (retryCount < 3) {
                 console.log(`Retrying market summary in 2s (attempt ${retryCount + 1})...`);
                 setTimeout(() => loadMarketSummary(retryCount + 1), 2000);
@@ -637,9 +677,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         tbody.innerHTML = filtered.map((item, idx) => {
-            const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-emerald-400 font-bold' : 'text-amber-400 font-bold';
-            const scoreClass = item.composite_score >= 75 ? 'text-emerald-400 font-bold' : 'text-slate-200';
-            const upsideClass = item.upside_pct >= 0 ? 'text-emerald-400 font-bold' : 'text-rose-400';
+            const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-brand-400 font-bold' : 'text-amber-400 font-bold';
+            const scoreClass = item.composite_score >= 75 ? 'text-brand-400 font-bold' : 'text-slate-200';
+            const upsideClass = item.upside_pct >= 0 ? 'text-brand-400 font-bold' : 'text-rose-400';
             const upsideSign = item.upside_pct >= 0 ? '+' : '';
 
             return `
@@ -657,7 +697,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
                     <td class="p-3.5 text-right font-mono">${item.per}x</td>
                     <td class="p-3.5 text-right font-mono">${item.pbv}x</td>
-                    <td class="p-3.5 text-right font-mono text-emerald-400">${item.roe}%</td>
+                    <td class="p-3.5 text-right font-mono text-brand-400">${item.roe}%</td>
                     <td class="p-3.5 text-right font-mono ${upsideClass}">${upsideSign}${item.upside_pct ? item.upside_pct.toFixed(1) : '0.0'}%</td>
                     <td class="p-3.5 text-center font-mono">${item.piotroski_f_score}/9</td>
                     <td class="p-3.5 text-right font-mono text-amber-400">${item.dividend_yield}%</td>
@@ -700,7 +740,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (marketSortSelect) marketSortSelect.addEventListener('change', renderMarketTable);
 
     const refreshMarketBtn = document.getElementById('refresh-market-btn');
-    if (refreshMarketBtn) refreshMarketBtn.addEventListener('click', loadMarketSummary);
+    if (refreshMarketBtn) refreshMarketBtn.addEventListener('click', () => loadMarketSummary(0));
 
     document.querySelectorAll('.screener-preset-card').forEach(card => {
         card.addEventListener('click', () => {
@@ -715,38 +755,45 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    document.getElementById('screener-filter-btn').addEventListener('click', () => {
-        const custom = {
-            min_roe: parseFloat(document.getElementById('f-min-roe').value) || null,
-            max_der: parseFloat(document.getElementById('f-max-der').value) || null,
-            min_piotroski_f: parseInt(document.getElementById('f-min-pio').value) || null,
-            min_dividend_yield: parseFloat(document.getElementById('f-min-div').value) || null,
-            max_pe: parseFloat(document.getElementById('f-max-pe').value) || null,
-            min_composite_score: parseFloat(document.getElementById('f-min-score').value) || null
-        };
-        runScreener('CUSTOM', custom);
-    });
+    const screenerFilterBtn = document.getElementById('screener-filter-btn');
+    if (screenerFilterBtn) {
+        screenerFilterBtn.addEventListener('click', () => {
+            const custom = {
+                min_roe: parseFloat(document.getElementById('f-min-roe')?.value) || null,
+                max_der: parseFloat(document.getElementById('f-max-der')?.value) || null,
+                min_piotroski_f: parseInt(document.getElementById('f-min-pio')?.value) || null,
+                min_dividend_yield: parseFloat(document.getElementById('f-min-div')?.value) || null,
+                max_pe: parseFloat(document.getElementById('f-max-pe')?.value) || null,
+                min_composite_score: parseFloat(document.getElementById('f-min-score')?.value) || null
+            };
+            runScreener('CUSTOM', custom);
+        });
+    }
 
     // CSV Export
-    document.getElementById('screener-export-csv').addEventListener('click', () => {
-        if (!currentScreenerResults.length) return;
-        const headers = ["Ticker", "Company Name", "Sector", "Price", "PER", "PBV", "ROE", "DER", "Piotroski", "Altman Z", "Div Yield", "Composite Score", "Grade", "Verdict"];
-        const rows = currentScreenerResults.map(it => [
-            it.ticker, `"${it.name}"`, `"${it.sector}"`, it.current_price, it.per, it.pbv, it.roe, it.der, it.piotroski_f_score, it.altman_z_score, it.dividend_yield, it.composite_score, it.grade, it.verdict
-        ]);
+    const screenerCsvBtn = document.getElementById('screener-export-csv');
+    if (screenerCsvBtn) {
+        screenerCsvBtn.addEventListener('click', () => {
+            if (!currentScreenerResults.length) return;
+            const headers = ["Ticker", "Company Name", "Sector", "Price", "PER", "PBV", "ROE", "DER", "Piotroski", "Altman Z", "Div Yield", "Composite Score", "Grade", "Verdict"];
+            const rows = currentScreenerResults.map(it => [
+                it.ticker, `"${it.name}"`, `"${it.sector}"`, it.current_price, it.per, it.pbv, it.roe, it.der, it.piotroski_f_score, it.altman_z_score, it.dividend_yield, it.composite_score, it.grade, it.verdict
+            ]);
 
-        const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
-        const encodedUri = encodeURI(csvContent);
-        const link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", `idx_screener_${new Date().toISOString().slice(0,10)}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-    });
+            const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `idx_screener_${new Date().toISOString().slice(0,10)}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        });
+    }
 
-    // Initial load: Load Market Overview by default, and prepare BBRI silently in background
+    // -------------------------------------------------------------
+    // Initial load: Load Market Overview by default & prepare BBRI
+    // -------------------------------------------------------------
     loadMarketSummary();
     loadSingleEmiten('BBRI', null, false, true);
 });
-
