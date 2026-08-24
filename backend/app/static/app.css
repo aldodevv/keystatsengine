@@ -1,42 +1,67 @@
-/* Custom CSS Styling for IDX Trading Terminal */
+/* =========================================================================
+   Stockbit-Inspired Modern Fintech Design System for IDX KeyStats Engine
+   ========================================================================= */
 
 :root {
-    --brand-glow: rgba(99, 102, 241, 0.15);
+    --bg-main: #0B0F19;
+    --bg-card: #111827;
+    --bg-card-hover: #162032;
+    --bg-surface: #1E293B;
+    --border-subtle: #233044;
+    --border-card: rgba(51, 65, 85, 0.7);
+    --stockbit-green: #00C274;
+    --stockbit-green-glow: rgba(0, 194, 116, 0.2);
+    --stockbit-red: #FF4D4D;
+    --stockbit-blue: #3B82F6;
+    --stockbit-amber: #F59E0B;
+    --stockbit-purple: #8B5CF6;
+    --stockbit-cyan: #06B6D4;
 }
 
 body {
-    background-color: #0b0f19;
-    color: #f1f5f9;
+    background-color: var(--bg-main);
+    color: #F1F5F9;
+    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
 }
 
-/* Custom Scrollbar */
+/* Hide scrollbar for Chrome, Safari and Opera */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+/* Hide scrollbar for IE, Edge and Firefox */
+.no-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+}
+
+/* Custom Sleek Scrollbar */
 ::-webkit-scrollbar {
     width: 6px;
     height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-    background: #0f172a;
+    background: #0B0F19;
 }
 
 ::-webkit-scrollbar-thumb {
-    background: #334155;
-    border-radius: 4px;
+    background: #2A364F;
+    border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-    background: #475569;
+    background: #3B4B69;
 }
 
-/* Tab Switching Transitions */
+/* Smooth Tab Switching Animation */
 .tab-content {
-    animation: fadeIn 0.2s ease-in-out;
+    animation: slideUpFade 0.25s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-@keyframes fadeIn {
+@keyframes slideUpFade {
     from {
         opacity: 0;
-        transform: translateY(4px);
+        transform: translateY(6px);
     }
     to {
         opacity: 1;
@@ -44,28 +69,82 @@ body {
     }
 }
 
-/* Glassmorphism Card Effects */
-.glass-card {
-    background: rgba(17, 24, 39, 0.85);
-    backdrop-filter: blur(12px);
-    border: 1px solid rgba(51, 65, 85, 0.6);
+/* Stockbit Card Soft Glow */
+.stockbit-card {
+    background: #111827;
+    border: 1px solid var(--border-subtle);
+    border-radius: 1.25rem;
+    transition: all 0.2s ease-in-out;
 }
 
-.glass-card:hover {
+.stockbit-card:hover {
     border-color: rgba(99, 102, 241, 0.4);
-    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 0 15px -3px var(--brand-glow);
+    box-shadow: 0 8px 30px -8px rgba(0, 0, 0, 0.6);
 }
 
-/* Pulsing Badge */
-@keyframes pulseGlow {
-    0%, 100% {
-        box-shadow: 0 0 10px rgba(16, 185, 129, 0.3);
-    }
-    50% {
-        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
-    }
+/* Stockbit Top Pick Highlights */
+.top-pick-card {
+    transition: all 0.25s ease-in-out;
 }
 
-.pulse-glow {
-    animation: pulseGlow 2.5s infinite;
+.top-pick-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 36px -8px rgba(0, 0, 0, 0.7);
+}
+
+/* Quick Chip Buttons */
+.quick-chip {
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.quick-chip:hover {
+    transform: scale(1.03);
+}
+
+/* Metric Pill */
+.metric-pill {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.625rem;
+    border-radius: 0.5rem;
+    font-size: 0.75rem;
+    font-family: 'JetBrains Mono', monospace;
+    background: rgba(30, 41, 59, 0.7);
+    border: 1px solid rgba(51, 65, 85, 0.5);
+    color: #E2E8F0;
+}
+
+/* Responsive Table Wrapper */
+.table-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 1rem;
+}
+
+/* Smooth Input Focus */
+input:focus, select:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.35);
+}
+
+/* Pulse indicator */
+.pulse-green {
+    box-shadow: 0 0 0 0 rgba(0, 194, 116, 0.7);
+    animation: pulseGreenAnimation 2s infinite;
+}
+
+@keyframes pulseGreenAnimation {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(0, 194, 116, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(0, 194, 116, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(0, 194, 116, 0);
+    }
 }

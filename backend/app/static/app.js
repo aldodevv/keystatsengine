@@ -191,47 +191,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Bank Panel
         const bankPanel = document.getElementById('bank-panel');
-        if (data.bank_metrics) {
-            bankPanel.classList.remove('hidden');
-            document.getElementById('b-car').textContent = `${data.bank_metrics.car}%`;
-            document.getElementById('b-npl-gross').textContent = `${data.bank_metrics.npl_gross}%`;
-            document.getElementById('b-npl-net').textContent = `${data.bank_metrics.npl_net}%`;
-            document.getElementById('b-nim').textContent = `${data.bank_metrics.nim}%`;
-            document.getElementById('b-bopo').textContent = `${data.bank_metrics.bopo}%`;
-            document.getElementById('b-casa').textContent = `${data.bank_metrics.casa}%`;
-            document.getElementById('b-ldr').textContent = `${data.bank_metrics.ldr}%`;
-        } else {
-            bankPanel.classList.add('hidden');
+        if (bankPanel) {
+            if (data.bank_metrics && data.bank_metrics.is_bank) {
+                bankPanel.classList.remove('hidden');
+                if (document.getElementById('b-car')) document.getElementById('b-car').textContent = `${data.bank_metrics.car}%`;
+                if (document.getElementById('b-npl-gross')) document.getElementById('b-npl-gross').textContent = `${data.bank_metrics.npl_gross}%`;
+                if (document.getElementById('b-npl-net')) document.getElementById('b-npl-net').textContent = `${data.bank_metrics.npl_net}%`;
+                if (document.getElementById('b-nim')) document.getElementById('b-nim').textContent = `${data.bank_metrics.nim}%`;
+                if (document.getElementById('b-cir')) document.getElementById('b-cir').textContent = `${data.bank_metrics.cost_to_income}%`;
+                if (document.getElementById('b-casa')) document.getElementById('b-casa').textContent = `${data.bank_metrics.casa_ratio}%`;
+                if (document.getElementById('b-ldr')) document.getElementById('b-ldr').textContent = `${data.bank_metrics.ldr}%`;
+            } else {
+                bankPanel.classList.add('hidden');
+            }
         }
 
-        // Radar Bar Charts
-        document.getElementById('bar-val-txt').textContent = `${data.radar.valuation} / 100`;
-        document.getElementById('bar-val').style.width = `${data.radar.valuation}%`;
+        // Bull & Bear Cases & Red Flags
+        const bullContainer = document.getElementById('r-bull-cases');
+        if (bullContainer) {
+            bullContainer.innerHTML = (data.bull_cases || []).map(b => `<li>${b}</li>`).join('') || '<li class="text-slate-500">Tidak ada bull case dominan.</li>';
+        }
 
-        document.getElementById('bar-prof-txt').textContent = `${data.radar.profitability} / 100`;
-        document.getElementById('bar-prof').style.width = `${data.radar.profitability}%`;
+        const bearContainer = document.getElementById('r-bear-cases');
+        if (bearContainer) {
+            bearContainer.innerHTML = (data.bear_cases || []).map(b => `<li>${b}</li>`).join('') || '<li class="text-slate-500">Tidak ada risiko mayor teridentifikasi.</li>';
+        }
 
-        document.getElementById('bar-health-txt').textContent = `${data.radar.financial_health} / 100`;
-        document.getElementById('bar-health').style.width = `${data.radar.financial_health}%`;
-
-        document.getElementById('bar-growth-txt').textContent = `${data.radar.growth} / 100`;
-        document.getElementById('bar-growth').style.width = `${data.radar.growth}%`;
-
-        document.getElementById('bar-cf-txt').textContent = `${data.radar.cash_flow_quality} / 100`;
-        document.getElementById('bar-cf').style.width = `${data.radar.cash_flow_quality}%`;
-
-        // Bull & Bear Cases
-        const bullContainer = document.getElementById('list-bull-cases');
-        bullContainer.innerHTML = (data.bull_cases || []).map(b => `<li class="flex items-start gap-1.5"><span class="text-emerald-400">✓</span> ${b}</li>`).join('') || '<li class="text-slate-500">Tidak ada bull case dominan.</li>';
-
-        const bearContainer = document.getElementById('list-bear-cases');
-        bearContainer.innerHTML = (data.bear_cases || []).map(b => `<li class="flex items-start gap-1.5"><span class="text-rose-400">⚠</span> ${b}</li>`).join('') || '<li class="text-slate-500">Tidak ada risiko mayor teridentifikasi.</li>';
-
-        // Signal Flags
-        const flagsContainer = document.getElementById('badge-flags-container');
-        const greens = (data.green_flags || []).map(f => `<span class="px-2.5 py-1 rounded-lg text-xs font-mono bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">✓ ${f}</span>`);
-        const reds = (data.red_flags || []).map(f => `<span class="px-2.5 py-1 rounded-lg text-xs font-mono bg-rose-500/10 text-rose-400 border border-rose-500/20">⚠ ${f}</span>`);
-        flagsContainer.innerHTML = [...greens, ...reds].join('') || '<span class="text-slate-500 text-xs">Netral.</span>';
+        const flagsContainer = document.getElementById('r-red-flags');
+        if (flagsContainer) {
+            flagsContainer.innerHTML = (data.red_flags || []).map(f => `<li>${f}</li>`).join('') || '<li class="text-slate-500">Tidak ada red flag / risiko neraca aman.</li>';
+        }
     }
 
     searchBtn.addEventListener('click', () => loadSingleEmiten(singleInput.value));
@@ -468,31 +457,31 @@ document.addEventListener('DOMContentLoaded', () => {
         if (topPicksContainer && data.top_picks) {
             const colorMap = {
                 emerald: {
-                    border: 'border-emerald-500/40 hover:border-emerald-400',
-                    bgGlow: 'bg-emerald-950/20',
-                    tagBg: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40',
-                    btnBg: 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-emerald-900/40',
-                    textAcc: 'text-emerald-400'
+                    border: 'border-brand-500/30 hover:border-brand-400',
+                    bgGlow: 'bg-emerald-950/15',
+                    tagBg: 'bg-brand-500/15 text-brand-400 border-brand-500/30',
+                    btnBg: 'bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/20',
+                    textAcc: 'text-brand-400'
                 },
                 cyan: {
-                    border: 'border-cyan-500/40 hover:border-cyan-400',
-                    bgGlow: 'bg-cyan-950/20',
-                    tagBg: 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40',
-                    btnBg: 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-900/40',
+                    border: 'border-cyan-500/30 hover:border-cyan-400',
+                    bgGlow: 'bg-cyan-950/15',
+                    tagBg: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+                    btnBg: 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-lg shadow-cyan-600/20',
                     textAcc: 'text-cyan-400'
                 },
                 indigo: {
-                    border: 'border-indigo-500/40 hover:border-indigo-400',
-                    bgGlow: 'bg-indigo-950/20',
-                    tagBg: 'bg-indigo-500/20 text-indigo-300 border-indigo-500/40',
-                    btnBg: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-900/40',
+                    border: 'border-indigo-500/30 hover:border-indigo-400',
+                    bgGlow: 'bg-indigo-950/15',
+                    tagBg: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/30',
+                    btnBg: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20',
                     textAcc: 'text-indigo-400'
                 },
                 amber: {
-                    border: 'border-amber-500/40 hover:border-amber-400',
-                    bgGlow: 'bg-amber-950/20',
-                    tagBg: 'bg-amber-500/20 text-amber-300 border-amber-500/40',
-                    btnBg: 'bg-amber-600 hover:bg-amber-500 text-white shadow-amber-900/40',
+                    border: 'border-amber-500/30 hover:border-amber-400',
+                    bgGlow: 'bg-amber-950/15',
+                    tagBg: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+                    btnBg: 'bg-amber-600 hover:bg-amber-500 text-white shadow-lg shadow-amber-600/20',
                     textAcc: 'text-amber-400'
                 }
             };
@@ -500,17 +489,17 @@ document.addEventListener('DOMContentLoaded', () => {
             topPicksContainer.innerHTML = data.top_picks.map(pick => {
                 const c = colorMap[pick.badge_color] || colorMap.emerald;
                 const upsideSign = pick.upside_pct >= 0 ? '+' : '';
-                const upsideColor = pick.upside_pct >= 0 ? 'text-emerald-400' : 'text-rose-400';
+                const upsideColor = pick.upside_pct >= 0 ? 'text-brand-400' : 'text-rose-400';
 
                 return `
-                    <div class="bg-dark-card border ${c.border} rounded-2xl p-5 shadow-xl transition-all duration-300 hover:scale-[1.01] hover:shadow-2xl flex flex-col justify-between relative overflow-hidden ${c.bgGlow}">
-                        <div class="space-y-4">
+                    <div class="top-pick-card bg-dark-card border ${c.border} rounded-2xl p-4 sm:p-5 shadow-lg flex flex-col justify-between relative overflow-hidden ${c.bgGlow}">
+                        <div class="space-y-3.5">
                             <!-- Category Badge -->
                             <div class="flex items-center justify-between gap-2">
                                 <span class="px-2.5 py-0.5 text-[10px] font-mono font-bold rounded-full border ${c.tagBg}">
                                     ${pick.category_tag}
                                 </span>
-                                <span class="px-2 py-0.5 text-xs font-mono font-bold rounded-lg bg-dark-bg border border-dark-border ${pick.grade.startsWith('A') ? 'text-emerald-400' : 'text-amber-400'}">
+                                <span class="px-2 py-0.5 text-xs font-mono font-bold rounded-lg bg-dark-bg border border-dark-border ${pick.grade.startsWith('A') ? 'text-brand-400' : 'text-amber-400'}">
                                     Grade ${pick.grade} (${pick.composite_score})
                                 </span>
                             </div>
@@ -518,14 +507,14 @@ document.addEventListener('DOMContentLoaded', () => {
                             <!-- Ticker & Company Name -->
                             <div>
                                 <div class="flex items-center gap-2">
-                                    <span class="text-2xl font-display font-black text-white tracking-tight">${pick.ticker}</span>
+                                    <span class="text-2xl font-extrabold text-white tracking-tight font-mono">${pick.ticker}</span>
                                     <span class="text-xs text-slate-400 truncate max-w-[170px]">${pick.name}</span>
                                 </div>
                                 <span class="text-[11px] text-slate-500 font-mono">${pick.sector}</span>
                             </div>
 
                             <!-- Price vs Fair Value & Upside -->
-                            <div class="p-3 bg-dark-bg/80 border border-dark-border rounded-xl font-mono text-xs space-y-1.5">
+                            <div class="p-3 bg-dark-bg/90 border border-dark-border rounded-xl font-mono text-xs space-y-1.5">
                                 <div class="flex items-center justify-between text-slate-400">
                                     <span>Harga Pasar:</span>
                                     <span class="text-slate-100 font-bold">Rp ${Number(pick.current_price).toLocaleString('id-ID')}</span>
@@ -548,7 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             </div>
 
                             <!-- Catalyst Paragraph -->
-                            <div class="text-xs text-slate-300 leading-relaxed bg-dark-bg/40 p-2.5 rounded-lg border border-dark-border/50">
+                            <div class="text-xs text-slate-300 leading-relaxed bg-dark-bg/60 p-2.5 rounded-lg border border-dark-border/70">
                                 <span class="text-slate-400 font-medium block text-[10px] uppercase font-mono mb-1">💡 Katalis Esok Hari:</span>
                                 ${pick.catalyst}
                             </div>
@@ -556,7 +545,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         <!-- Action Button -->
                         <div class="mt-4 pt-3 border-t border-dark-border">
-                            <button onclick="switchSingle('${pick.ticker}')" class="w-full py-2.5 px-4 rounded-xl ${c.btnBg} font-bold text-xs shadow-lg transition-all flex items-center justify-center gap-2">
+                            <button onclick="switchSingle('${pick.ticker}')" class="w-full py-2.5 px-4 rounded-xl ${c.btnBg} font-bold text-xs transition-all flex items-center justify-center gap-2">
                                 <span>🔍 Lihat Detail Analisis ${pick.ticker}</span>
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
                             </button>
