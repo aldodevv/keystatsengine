@@ -1,5 +1,5 @@
 """
-Unit & Integration Tests for Currency Exchange Rates & Conversions.
+Unit & Integration Tests for Currency Exchange Rates & Conversions via Bank Indonesia JISDOR.
 """
 
 from fastapi.testclient import TestClient
@@ -17,7 +17,7 @@ def test_currency_service_live_rate():
     assert rate_info.usd_to_idr > 5000
     assert rate_info.idr_to_usd > 0
     assert "1 USD = Rp" in rate_info.formatted_rate
-    assert rate_info.source is not None
+    assert "Bank Indonesia" in rate_info.source or "JISDOR" in rate_info.source
 
 
 def test_currency_service_conversion():
@@ -49,6 +49,8 @@ def test_api_currency_rate_endpoint():
     assert data["idr_to_usd"] > 0
     assert "last_updated" in data
     assert "formatted_rate" in data
+    assert "source" in data
+    assert "Bank Indonesia" in data["source"] or "JISDOR" in data["source"]
 
 
 def test_api_currency_convert_get_endpoint():

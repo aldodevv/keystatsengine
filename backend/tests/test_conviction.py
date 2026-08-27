@@ -4,14 +4,14 @@ Margin of Safety, Multi-Scenario Valuation, 10-Point Checklist, and Position Siz
 """
 
 import pytest
-from app.data_providers.mock_provider import MockDataProvider
+from app.data_providers.institutional_provider import InstitutionalDataProvider
 from app.engines.scoring_engine import ScoringEngine
 from app.engines.conviction_engine import ConvictionEngine
 from app.models.conviction import BuyZone, ConvictionTier
 
 
 def test_conviction_engine_single_emiten_bbri():
-    provider = MockDataProvider()
+    provider = InstitutionalDataProvider()
     raw = provider.get_keystats("BBRI")
     assert raw is not None
     
@@ -43,7 +43,7 @@ def test_conviction_engine_single_emiten_bbri():
 
 
 def test_multi_scenario_consistency_across_all_emitens():
-    provider = MockDataProvider()
+    provider = InstitutionalDataProvider()
     tickers = provider.list_all_tickers()
     
     for ticker in tickers:
@@ -66,7 +66,7 @@ def test_multi_scenario_consistency_across_all_emitens():
 
 
 def test_checklist_criteria_validation():
-    provider = MockDataProvider()
+    provider = InstitutionalDataProvider()
     raw_bbca = provider.get_keystats("BBCA")
     assert raw_bbca is not None
     

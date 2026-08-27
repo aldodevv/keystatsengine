@@ -1,11 +1,13 @@
 """
-Unit tests for Financial Health (Piotroski F, Altman Z, DuPont ROE).
+Unit tests for Financial Health (Piotroski F, Altman Z, DuPont ROE, OJK Banking Metrics, and XBRL Taxonomy).
 """
 
 import pytest
 from app.engines.financial_health import FinancialHealthEngine
 from app.engines.profitability_engine import ProfitabilityEngine
-from app.models.keystats import RawKeyStats, FinancialPeriod
+from app.engines.sector_bank_engine import SectorBankEngine
+from app.models.keystats import RawKeyStats, FinancialPeriod, BankSpecificMetrics
+from app.models.xbrl import XBRLEntryPoint
 from app.models.score import HealthZone
 
 
@@ -100,28 +102,91 @@ def test_growth_and_cagr_calculation():
     )
     
     growth = FinancialHealthEngine.calculate_growth(raw)
-    assert growth.revenue_growth_yoy == pytest.approx(20.0, rel=1e-2)  # (150-125)/125 = 20%
-    assert growth.net_income_growth_yoy == pytest.approx(33.33, rel=1e-2)  # (20-15)/15 = 33.33%
+    assert growth.revenue_growth_yoy == pytest.approx(20.0, rel=1e-2)
+    assert growth.net_income_growth_yoy == pytest.approx(33.33, rel=1e-2)
     assert growth.eps_growth_yoy == pytest.approx(33.33, rel=1e-2)
     assert growth.eps_current == 20.0
     assert growth.revenue_current == 150.0
-    
-    # 3Y CAGR: (150/100)^(1/3) - 1 = 14.47%
     assert growth.revenue_cagr_3y == pytest.approx(14.47, rel=1e-2)
-    # EPS CAGR: (20/10)^(1/3) - 1 = 25.99%
     assert growth.eps_cagr_3y == pytest.approx(25.99, rel=1e-2)
     assert len(growth.revenue_history) == 4
     assert len(growth.eps_history) == 4
 
 
-def test_mock_provider_all_emitens_have_complete_data():
-    from app.data_providers.mock_provider import MockDataProvider
+def test_ojk_banking_metrics_and_branching():
+    # Setup BBCA bank emiten with OJK banking metrics
+    raw_bank = RawKeyStats(
+        ticker="BBCA",
+        name="PT Bank Central Asia Tbk",
+        sector="Financials",
+        industry="Banking",
+        xbrl_entry_point=XBRLEntryPoint.FINANCIAL_BANKING,
+        current_price=10250.0,
+        shares_outstanding=123_275_050_000,
+        market_cap=1_263_569_262_500_000,
+        current_period=FinancialPeriod(
+            year=2024,
+            filing_date="2025-01-25",
+            xbrl_entry_point=XBRLEntryPoint.FINANCIAL_BANKING,
+            revenue=108_250_000_000_000,
+            gross_profit=82_100_000_000_000,
+            operating_profit=66_800_000_000_000,
+            net_income=54_800_000_000_000,
+            eps=444.53,
+            total_assets=1_449_300_000_000_000,
+            total_liabilities=1_180_000_000_000_000,
+            total_equity=269_300_000_000_000,
+            interest_income=96_500_000_000_000,
+            net_interest_income=82_100_000_000_000,
+            earning_assets=1_380_000_000_000_000,
+            total_loans=877_000_000_000_000,
+            deposits_dpk=1_130_000_000_000_000,
+            casa_deposits=926_600_000_000_000,
+            regulatory_capital=260_000_000_000_000,
+            risk_weighted_assets=890_000_000_000_000
+        ),
+        bank_metrics=BankSpecificMetrics(
+            car=29.2,
+            npl_gross=1.8,
+            npl_net=0.4,
+            nim=5.8,
+            bopo=48.2,
+            ldr=77.6,
+            casa=82.0,
+            cost_of_credit=0.3
+        )
+    )
+    
+    # 1. Evaluate Solvency for Bank -> Altman Z is branched to safe zone
+    solv = FinancialHealthEngine.calculate_solvency(raw_bank)
+    assert solv.altman_zone == HealthZone.SAFE
+    assert solv.altman_z_score >= 3.0
+    
+    # 2. SectorBankEngine calculates exact OJK benchmarks
+    bank_eval = SectorBankEngine.evaluate_bank(raw_bank)
+    assert bank_eval["nim"] == 5.8
+    assert bank_eval["car"] == 29.2
+    assert bank_eval["npl_gross"] == 1.8
+    assert bank_eval["bopo"] == 48.2
+    assert bank_eval["casa"] == 82.0
+    assert bank_eval["bank_health_score"] >= 80.0
+    assert len(bank_eval["bank_strengths"]) >= 3
+
+
+def test_institutional_provider_all_emitens_have_complete_data():
+    from app.data_providers.institutional_provider import InstitutionalDataProvider
     from app.engines.scoring_engine import ScoringEngine
     
-    provider = MockDataProvider()
+    provider = InstitutionalDataProvider()
     tickers = provider.list_all_tickers()
     assert len(tickers) >= 10
+    assert "BBCA" in tickers
+    assert "BBRI" in tickers
     assert "ADMR" in tickers
+    
+    bulk = provider.get_bulk_market_data()
+    assert len(bulk) >= 10
+    assert "BBCA" in bulk
     
     for t in tickers:
         raw = provider.get_keystats(t)
@@ -129,6 +194,7 @@ def test_mock_provider_all_emitens_have_complete_data():
         assert raw.current_period.eps > 0
         assert raw.current_period.revenue > 0
         assert raw.current_period.net_income > 0
+        assert raw.current_period.filing_date is not None  # Point-in-time preservation
         assert raw.previous_period is not None
         assert len(raw.historical_periods) >= 3
         assert raw.financial_matrix is not None
@@ -139,4 +205,3 @@ def test_mock_provider_all_emitens_have_complete_data():
         assert report.net_income > 0
         assert report.financial_matrix is not None
         assert len(report.financial_matrix.years) >= 5
-

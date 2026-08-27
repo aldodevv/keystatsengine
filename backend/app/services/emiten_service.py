@@ -1,10 +1,11 @@
 """
 Emiten Service: Coordinates data fetching and analytical scoring for single emitens.
+Uses InstitutionalDataProvider as primary data source.
 """
 
 from typing import Optional, List
 from app.data_providers.base import BaseDataProvider
-from app.data_providers.yfinance_provider import YFinanceProvider
+from app.data_providers.institutional_provider import InstitutionalDataProvider
 from app.engines.scoring_engine import ScoringEngine
 from app.models.score import EmitenAnalysisReport
 from app.models.keystats import RawKeyStats
@@ -12,19 +13,15 @@ from app.models.keystats import RawKeyStats
 
 class EmitenService:
     def __init__(self, provider: Optional[BaseDataProvider] = None):
-        self.provider = provider or YFinanceProvider(fallback_to_mock=True)
+        self.provider = provider or InstitutionalDataProvider()
 
     def analyze_single_emiten(
         self,
         ticker: str,
         override_price: Optional[float] = None,
-        force_live: bool = True
+        force_live: bool = False
     ) -> Optional[EmitenAnalysisReport]:
-        if hasattr(self.provider, "get_keystats"):
-            raw = self.provider.get_keystats(ticker, override_price=override_price, force_live=force_live)
-        else:
-            raw = self.provider.get_keystats(ticker)
-            
+        raw = self.provider.get_keystats(ticker, override_price=override_price, force_live=force_live)
         if not raw:
             return None
         return ScoringEngine.analyze_emiten(raw)

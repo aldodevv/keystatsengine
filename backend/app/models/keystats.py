@@ -4,11 +4,15 @@ Domain data models for IDX Emiten Financial Statements, KeyStats, and Sector Att
 
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
+from app.models.xbrl import XBRLEntryPoint
 
 
 class FinancialPeriod(BaseModel):
     year: int
     quarter: Optional[int] = None
+    filing_date: Optional[str] = None  # Point-in-time filing timestamp to prevent look-ahead bias
+    xbrl_entry_point: Optional[XBRLEntryPoint] = None
+    
     revenue: float = 0.0
     gross_profit: float = 0.0
     operating_profit: float = 0.0
@@ -36,6 +40,20 @@ class FinancialPeriod(BaseModel):
     dividends_paid: float = 0.0
     shares_outstanding: float = 0.0
 
+    # Bank-Specific Detailed XBRL Items (OJK & Bank Indonesia Reporting)
+    interest_income: float = 0.0
+    interest_expense: float = 0.0
+    net_interest_income: float = 0.0
+    earning_assets: float = 0.0
+    total_loans: float = 0.0
+    deposits_dpk: float = 0.0
+    casa_deposits: float = 0.0
+    npl_gross_amount: float = 0.0
+    npl_net_amount: float = 0.0
+    loan_loss_provisions: float = 0.0
+    regulatory_capital: float = 0.0
+    risk_weighted_assets: float = 0.0
+
 
 class BankSpecificMetrics(BaseModel):
     car: Optional[float] = None  # Capital Adequacy Ratio (%)
@@ -46,6 +64,9 @@ class BankSpecificMetrics(BaseModel):
     ldr: Optional[float] = None  # Loan to Deposit Ratio (%)
     casa: Optional[float] = None  # Current Account Saving Account ratio (%)
     cost_of_credit: Optional[float] = None  # CoC (%)
+    earning_assets: Optional[float] = None
+    total_loans: Optional[float] = None
+    deposits_dpk: Optional[float] = None
 
 
 from app.models.financial_matrix import StockbitFinancialMatrix
@@ -56,6 +77,8 @@ class RawKeyStats(BaseModel):
     name: str = Field(description="Company Full Name")
     sector: str = Field(default="General", description="IDX Sector")
     industry: str = Field(default="General", description="IDX Sub-industry")
+    xbrl_entry_point: XBRLEntryPoint = Field(default=XBRLEntryPoint.GENERAL_INDUSTRY, description="XBRL Taxonomy Entry Point")
+    
     # Price & Market Information
     current_price: float = Field(description="Latest Closing / Current Price (IDR)")
     previous_close: Optional[float] = Field(default=None, description="Previous Day Closing Price (IDR)")
@@ -87,3 +110,4 @@ class RawKeyStats(BaseModel):
     # Additional flags
     is_syariah: bool = False
     idx_board: str = "Main"  # Main, Development, Acceleration, New Economy
+

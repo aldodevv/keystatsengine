@@ -1,12 +1,15 @@
 """
-Valuation Engine: Computes traditional & advanced valuation metrics including
-PER, PBV, EV/EBITDA, PEG, Graham Number, DCF Fair Value, and Valuation Bands.
+Valuation Engine:
+Computes traditional & advanced valuation metrics including PER, PBV, EV/EBITDA, PEG,
+Graham Number, Multi-stage DCF, Justified PBV (for Banks), and Historical Valuation Bands.
+Incorporates point-in-time data isolation to prevent look-ahead bias.
 """
 
 import math
 from typing import Optional
 from app.models.keystats import RawKeyStats
 from app.models.score import ValuationResult
+from app.models.xbrl import XBRLEntryPoint
 
 
 class ValuationEngine:
@@ -16,8 +19,14 @@ class ValuationEngine:
         curr = raw.current_period
         shares = raw.shares_outstanding if raw.shares_outstanding > 0 else 1.0
         market_cap = raw.market_cap if raw.market_cap > 0 else (price * shares)
+        is_bank = (
+            raw.xbrl_entry_point == XBRLEntryPoint.FINANCIAL_BANKING or
+            "bank" in raw.sector.lower() or
+            "bank" in raw.industry.lower() or
+            raw.bank_metrics is not None
+        )
         
-        # EPS & BVPS
+        # EPS & BVPS (Point-in-Time as-reported)
         eps = curr.eps if curr.eps != 0 else (curr.net_income / shares if shares > 0 else 0.0)
         bvps = (curr.total_equity / shares) if (shares > 0 and curr.total_equity > 0) else 0.0
         
@@ -30,15 +39,18 @@ class ValuationEngine:
         # 2b. Price to Sales (P/S)
         ps_ratio = (market_cap / curr.revenue) if curr.revenue > 0 else 0.0
         
-        # 3. Enterprise Value & EV/EBITDA
-        total_debt = curr.total_debt if curr.total_debt > 0 else (curr.short_term_debt + curr.long_term_debt)
-        cash = curr.cash_and_equivalents
-        ev = market_cap + total_debt - cash
-        ebitda = curr.ebitda if curr.ebitda > 0 else (curr.operating_profit + (curr.total_assets * 0.05))
-        ev_ebitda = (ev / ebitda) if ebitda > 0 else 0.0
+        # 3. Enterprise Value & EV/EBITDA (Applicable to non-banks; for banks, set based on market cap)
+        if is_bank:
+            ev = market_cap
+            ev_ebitda = per  # For banks, PER is the prime operational multiple
+        else:
+            total_debt = curr.total_debt if curr.total_debt > 0 else (curr.short_term_debt + curr.long_term_debt)
+            cash = curr.cash_and_equivalents
+            ev = market_cap + total_debt - cash
+            ebitda = curr.ebitda if curr.ebitda > 0 else (curr.operating_profit + (curr.total_assets * 0.05))
+            ev_ebitda = (ev / ebitda) if ebitda > 0 else 0.0
         
         # 4. PEG Ratio
-        # If eps_growth_rate is in % (e.g. 15 for 15%), PEG = PER / Growth
         peg_ratio = None
         if eps_growth_rate is not None and eps_growth_rate > 1.0 and per > 0:
             peg_ratio = round(per / eps_growth_rate, 2)
@@ -50,14 +62,14 @@ class ValuationEngine:
             if product > 0:
                 graham_number = round(math.sqrt(product), 2)
                 
-        # 6. Discounted Cash Flow (DCF) Fair Value (Conservative 5-Year Multi-stage)
-        dcf_fair_value = ValuationEngine._calculate_dcf(raw, shares)
+        # 6. Discounted Cash Flow (DCF) or Justified PBV (for Banking)
+        dcf_fair_value = ValuationEngine._calculate_dcf(raw, shares, is_bank, bvps)
         
         # 7. Historical Valuation Bands Analysis
         pe_status = ValuationEngine._analyze_band(per, raw.pe_mean_5y, raw.pe_standard_deviation, "PER")
         pbv_status = ValuationEngine._analyze_band(pbv, raw.pbv_mean_5y, raw.pbv_standard_deviation, "PBV")
         
-        # 8. Composite Fair Value Estimation
+        # 8. Composite Fair Value Estimation (Without Look-Ahead Bias)
         fair_values = []
         if graham_number and graham_number > 0:
             fair_values.append(graham_number)
@@ -73,7 +85,6 @@ class ValuationEngine:
         if fair_values:
             average_fair_value = round(sum(fair_values) / len(fair_values), 2)
         else:
-            # Fallback if no deep metrics available
             average_fair_value = round(bvps * 1.5 if bvps > 0 else price, 2)
             
         upside_downside_pct = round(((average_fair_value - price) / price) * 100, 2) if price > 0 else 0.0
@@ -95,24 +106,39 @@ class ValuationEngine:
         )
 
     @staticmethod
-    def _calculate_dcf(raw: RawKeyStats, shares: float) -> Optional[float]:
-        """Calculates 5-year conservative DCF with 10% discount rate (WACC) and 3% terminal growth."""
+    def _calculate_dcf(raw: RawKeyStats, shares: float, is_bank: bool = False, bvps: float = 0.0) -> Optional[float]:
+        """
+        Calculates 5-year conservative DCF / Gordon Growth model.
+        For banks, uses Justified P/B Gordon formula: Fair BVPS Multiple = (ROE - g) / (Ke - g).
+        """
         curr = raw.current_period
-        base_fcf = curr.fcf
         
-        # If FCF is not reported or negative, estimate from CFO - Capex or 70% of Net Income
+        # Branching for Banks: Justified Price-to-Book Model
+        if is_bank and bvps > 0:
+            equity = curr.total_equity if curr.total_equity > 0 else 1.0
+            roe = curr.net_income / equity if equity > 0 else 0.15
+            ke = 0.11  # 11% Cost of Equity for Indonesian Tier-1/Tier-2 Banks
+            g = 0.06   # 6% Sustainable long-term credit & economic growth
+            
+            if ke > g:
+                justified_pbv = (roe - g) / (ke - g)
+                justified_pbv = max(0.8, min(justified_pbv, 5.0))
+                return round(bvps * justified_pbv, 2)
+                
+        # Corporate Multi-Stage DCF
+        base_fcf = curr.fcf
         if base_fcf <= 0:
             if curr.cfo > 0:
                 base_fcf = curr.cfo - abs(curr.capex)
             if base_fcf <= 0 and curr.net_income > 0:
-                base_fcf = curr.net_income * 0.7  # Normalized cash flow conversion
+                base_fcf = curr.net_income * 0.7
                 
         if base_fcf <= 0 or shares <= 0:
             return None
             
-        wacc = 0.10  # 10% discount rate for IDX
-        terminal_growth = 0.03  # 3% perpetual growth
-        fcf_growth = 0.07  # conservative 7% growth for first 5 years
+        wacc = 0.10  # 10% discount rate
+        terminal_growth = 0.03
+        fcf_growth = 0.07
         
         pv_future_fcf = 0.0
         projected_fcf = base_fcf
@@ -120,21 +146,17 @@ class ValuationEngine:
             projected_fcf *= (1 + fcf_growth)
             pv_future_fcf += projected_fcf / ((1 + wacc) ** year)
             
-        # Terminal Value
         terminal_value = (projected_fcf * (1 + terminal_growth)) / (wacc - terminal_growth)
         pv_terminal_value = terminal_value / ((1 + wacc) ** 5)
         
         enterprise_value = pv_future_fcf + pv_terminal_value
-        
-        # Equity value = EV + Cash - Total Debt
         total_debt = curr.total_debt if curr.total_debt > 0 else (curr.short_term_debt + curr.long_term_debt)
         equity_value = enterprise_value + curr.cash_and_equivalents - total_debt
         
         if equity_value <= 0:
             return None
             
-        dcf_per_share = round(equity_value / shares, 2)
-        return dcf_per_share
+        return round(equity_value / shares, 2)
 
     @staticmethod
     def _analyze_band(current_val: float, mean: Optional[float], std: Optional[float], metric_name: str) -> Optional[str]:

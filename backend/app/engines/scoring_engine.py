@@ -6,6 +6,7 @@ Letter Grade (A+ to F), Final Verdict, and Bull/Bear Case Synthesizer.
 
 from typing import List, Optional, Dict, Any
 from app.models.keystats import RawKeyStats
+from app.models.xbrl import XBRLEntryPoint
 from app.models.score import (
     ValuationResult,
     ProfitabilityResult,
@@ -40,7 +41,12 @@ class ScoringEngine:
         cf_div = FinancialHealthEngine.calculate_cash_flow_dividend(raw)
         
         # Sector specific adjustments
-        is_bank = "bank" in raw.sector.lower() or "financial" in raw.sector.lower() or raw.bank_metrics is not None
+        is_bank = (
+            getattr(raw, "xbrl_entry_point", None) == XBRLEntryPoint.FINANCIAL_BANKING or
+            "bank" in raw.sector.lower() or
+            "financial" in raw.sector.lower() or
+            raw.bank_metrics is not None
+        )
         bank_data = SectorBankEngine.evaluate_bank(raw) if is_bank else None
         
         # 2. Compute 5-Axis Radar Scores (0 to 100)

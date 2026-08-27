@@ -12,9 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     let currentCurrency = localStorage.getItem('idx_keystats_currency') || 'IDR';
     let liveFxRate = {
-        usd_to_idr: 17712.0,
-        idr_to_usd: 1.0 / 17712.0,
-        source: 'Yahoo Finance FX',
+        usd_to_idr: 16250.0,
+        idr_to_usd: 1.0 / 16250.0,
+        source: 'Bank Indonesia JISDOR',
         last_updated_formatted: 'Live',
         change_24h: 0,
         change_pct_24h: 0

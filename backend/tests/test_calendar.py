@@ -1,5 +1,5 @@
 """
-Unit and Integration Tests for Economic Calendar Agendas & Impacted Stocks Engine.
+Unit and Integration Tests for Economic Calendar Agendas, Impacted Stocks Engine, FRED API, and BPS Open Data.
 """
 
 from datetime import date
@@ -36,6 +36,13 @@ def test_calendar_service_unit_basic():
         assert len(item.scenarios) >= 1
         assert item.transmission_mechanism != ""
         assert item.actionable_strategy != ""
+
+
+def test_calendar_service_fred_and_bps_integration():
+    service = CalendarService(fred_api_key="demo_key", bps_api_key="demo_key")
+    # Verify FRED helper is callable
+    assert hasattr(service, "_fetch_fred_series")
+    assert hasattr(service, "_fetch_bps_inflation_gdp")
 
 
 def test_calendar_service_scope_filter():

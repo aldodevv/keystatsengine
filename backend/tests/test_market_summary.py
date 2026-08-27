@@ -1,19 +1,19 @@
 """
-Unit & Integration Tests for Market Summary and Daily Top Stock Picks.
+Unit & Integration Tests for Market Summary and Daily Top Stock Picks with Institutional Provider.
 """
 
 from fastapi.testclient import TestClient
 from app.main import app
 from app.services.emiten_service import EmitenService
 from app.services.market_summary_service import MarketSummaryService
-from app.data_providers.mock_provider import MockDataProvider
+from app.data_providers.institutional_provider import InstitutionalDataProvider
 
 client = TestClient(app)
 
 
 def test_market_summary_service_unit():
-    mock_prov = MockDataProvider()
-    emiten_srv = EmitenService(provider=mock_prov)
+    inst_prov = InstitutionalDataProvider()
+    emiten_srv = EmitenService(provider=inst_prov)
     market_srv = MarketSummaryService(emiten_srv)
 
     summary = market_srv.get_market_summary()

@@ -3,7 +3,7 @@ Base Data Provider Interface for IDX Keystats and Financial Statements.
 """
 
 from abc import ABC, abstractmethod
-from typing import Optional, List
+from typing import Optional, List, Dict, Any
 from app.models.keystats import RawKeyStats
 from app.models.chart import CandleDataPoint
 
@@ -16,7 +16,7 @@ class BaseDataProvider(ABC):
         override_price: Optional[float] = None,
         force_live: bool = False
     ) -> Optional[RawKeyStats]:
-        """Fetches raw keystats and financial statements for a given ticker."""
+        """Fetches raw keystats and XBRL financial statements for a given ticker."""
         pass
         
     @abstractmethod
@@ -31,6 +31,25 @@ class BaseDataProvider(ABC):
 
     @abstractmethod
     def get_historical_ohlcv(self, ticker: str, timeframe: str = "1y") -> List[CandleDataPoint]:
-        """Fetches historical daily OHLCV candlestick data."""
+        """Fetches corporate-action adjusted historical daily OHLCV candlestick data."""
         pass
+
+    def get_bulk_market_data(self) -> Dict[str, Dict[str, Any]]:
+        """
+        Fetches bulk market data (prices, market cap, key metrics) for all IDX stocks in a single round-trip.
+        Default implementation provides compatibility by querying tickers.
+        """
+        result = {}
+        for ticker in self.list_all_tickers():
+            stats = self.get_keystats(ticker)
+            if stats:
+                result[ticker] = {
+                    "ticker": stats.ticker,
+                    "name": stats.name,
+                    "sector": stats.sector,
+                    "current_price": stats.current_price,
+                    "market_cap": stats.market_cap,
+                    "shares_outstanding": stats.shares_outstanding
+                }
+        return result
 

@@ -1,6 +1,7 @@
 """
-Chart Service: Orchestrates historical OHLCV data retrieval,
+Chart Service: Orchestrates historical corporate-action adjusted OHLCV data retrieval,
 technical indicators calculation, signal detection, and fundamental overlay generation.
+Ensures adjusted series is used to eliminate false EMA/SMA crossover signals.
 """
 
 from typing import Optional, List
@@ -23,14 +24,14 @@ class ChartService:
     def get_chart_data(self, ticker: str, timeframe: str = "1y") -> Optional[ChartResponse]:
         clean_ticker = ticker.upper().replace(".JK", "").strip()
         
-        # 1. Fetch OHLCV Candlestick data
+        # 1. Fetch Corporate-Action Adjusted OHLCV Candlestick data from Institutional Provider
         candles = self.provider.get_historical_ohlcv(clean_ticker, timeframe=timeframe)
         if not candles:
             return None
             
         current_price = candles[-1].close if candles else 0.0
         
-        # 2. Run Technical Pattern Engine
+        # 2. Run Technical Pattern Engine (EMA 20, SMA 50, RSI 14, MACD, Breakouts, Gaps)
         indicators, signals, support_resistance, gaps = TechnicalEngine.analyze(candles)
         
         # 3. Retrieve Fundamental Overlays from Emiten Analysis

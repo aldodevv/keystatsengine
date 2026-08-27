@@ -6,6 +6,7 @@ Piotroski F-Score (9 points), Beneish M-Score, and Cash Flow/Dividend Sustainabi
 
 from typing import Tuple, Dict
 from app.models.keystats import RawKeyStats, FinancialPeriod
+from app.models.xbrl import XBRLEntryPoint
 from app.models.score import (
     SolvencyResult,
     LiquidityResult,
@@ -32,7 +33,6 @@ class FinancialHealthEngine:
         # Interest Coverage Ratio
         # If interest expense is reported, calculate ICR, else None
         icr = None
-        # We can approximate interest expense from debt or use reported
         estimated_interest = total_debt * 0.07  # conservative approx if not explicitly itemized
         if estimated_interest > 0 and ebit != 0:
             icr = round(ebit / estimated_interest, 2)
@@ -41,7 +41,12 @@ class FinancialHealthEngine:
         
         # Altman Z-Score (Emerging Market formula)
         # Note: For Banking & Financial institutions, standard Altman Z is not applicable; set zone based on Bank capital/asset quality
-        is_bank = "bank" in raw.sector.lower() or "financial" in raw.sector.lower() or raw.bank_metrics is not None
+        is_bank = (
+            raw.xbrl_entry_point == XBRLEntryPoint.FINANCIAL_BANKING or
+            "bank" in raw.sector.lower() or
+            "financial" in raw.sector.lower() or
+            raw.bank_metrics is not None
+        )
         if is_bank:
             z_score = 3.5  # Normalized safe bank score
             z_zone = HealthZone.SAFE
@@ -56,6 +61,7 @@ class FinancialHealthEngine:
             altman_z_score=round(z_score, 2),
             altman_zone=z_zone
         )
+
 
     @staticmethod
     def calculate_liquidity(raw: RawKeyStats) -> LiquidityResult:
