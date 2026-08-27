@@ -102,7 +102,8 @@ class ScoringEngine:
             bear_cases=bears,
             green_flags=greens,
             red_flags=reds,
-            buy_conviction=buy_conviction
+            buy_conviction=buy_conviction,
+            financial_matrix=raw.financial_matrix
         )
 
     @staticmethod

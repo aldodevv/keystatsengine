@@ -6,6 +6,7 @@ from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from enum import Enum
 from app.models.conviction import BuyConvictionReport
+from app.models.financial_matrix import StockbitFinancialMatrix
 
 
 class HealthZone(str, Enum):
@@ -171,3 +172,6 @@ class EmitenAnalysisReport(BaseModel):
     
     # High-Conviction Buy Engine
     buy_conviction: Optional[BuyConvictionReport] = None
+    
+    # Stockbit-Grade Multi-Year Financial Matrix (2020-2026+)
+    financial_matrix: Optional[StockbitFinancialMatrix] = None

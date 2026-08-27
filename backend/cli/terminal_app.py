@@ -2,6 +2,7 @@
 Terminal Rich Renderer for Emiten KeyStats, Radar Charts, Comparison Matrix, and Screener.
 """
 
+from typing import Optional
 from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
@@ -113,39 +114,59 @@ class TerminalRenderer:
 
         console.print(Columns([val_table, prof_table, health_table, cf_table], equal=True))
 
-        # Dedicated Financial Performance (EPS & Revenue) Table with Multi-Year Trend
-        growth_summary_table = Table(title="[bold cyan]📊 PERFORMA FINANSIAL, EPS & REVENUE MULTI-YEAR (2021 - 2024)[/bold cyan]", box=box.ROUNDED)
-        growth_summary_table.add_column("Tahun Buku", justify="center", style="bold")
-        growth_summary_table.add_column("Pendapatan (Revenue)", justify="right")
-        growth_summary_table.add_column("Laba Bersih (Net Income)", justify="right")
-        growth_summary_table.add_column("EPS (Rp/lembar)", justify="right", style="bold yellow")
-        growth_summary_table.add_column("Net Profit Margin", justify="right")
-        
-        if report.growth.revenue_history:
-            for row in report.growth.revenue_history:
-                rev_val = row.get("revenue", 0)
-                ni_val = row.get("net_income", 0)
-                eps_val = row.get("eps", 0)
-                npm_val = (ni_val / rev_val * 100) if rev_val > 0 else 0.0
-                year_label = f"⭐ {row.get('year')} (Aktif)" if row.get('year') == 2024 else str(row.get('year'))
-                growth_summary_table.add_row(
-                    year_label,
-                    f"Rp{rev_val / 1e12:,.2f} T",
-                    f"Rp{ni_val / 1e12:,.2f} T",
-                    f"Rp{eps_val:,.2f}",
-                    f"{npm_val:.1f}%"
-                )
-        else:
-            growth_summary_table.add_row("2024", f"Rp{report.revenue / 1e12:,.2f} T", f"Rp{report.net_income / 1e12:,.2f} T", f"Rp{report.eps:,.2f}", f"{report.profitability.npm:.1f}%")
+        # Dedicated Stockbit-Grade Financial Matrix Table (2020 - 2026+)
+        if report.financial_matrix:
+            mat = report.financial_matrix
+            matrix_table = Table(title="[bold cyan]📊 STOCKBIT PRO MULTI-YEAR QUARTERLY FINANCIAL MATRIX (2020 - 2026)[/bold cyan]", box=box.ROUNDED)
+            matrix_table.add_column("Period (IDR)", style="bold cyan")
+            for y in mat.years:
+                matrix_table.add_column(str(y), justify="right")
+                
+            def _get_q_val(y: int, attr: str) -> Optional[float]:
+                pt = mat.eps_matrix.get(str(y))
+                if pt is not None:
+                    return getattr(pt, attr, None)
+                return None
+
+            rows = [
+                ("EPS Q1", lambda y: f"{_get_q_val(y, 'q1'):,.2f}" if _get_q_val(y, 'q1') is not None else "-"),
+                ("EPS Q2", lambda y: f"{_get_q_val(y, 'q2'):,.2f}" if _get_q_val(y, 'q2') is not None else "-"),
+                ("EPS Q3", lambda y: f"{_get_q_val(y, 'q3'):,.2f}" if _get_q_val(y, 'q3') is not None else "-"),
+                ("EPS Q4", lambda y: f"{_get_q_val(y, 'q4'):,.2f}" if _get_q_val(y, 'q4') is not None else "-"),
+                ("[bold yellow]Annualised[/bold yellow]", lambda y: f"[bold yellow]{_get_q_val(y, 'annualised'):,.2f}[/bold yellow]" if _get_q_val(y, 'annualised') is not None else "-"),
+                ("[bold green]TTM (Q1)[/bold green]", lambda y: f"[bold green]{_get_q_val(y, 'ttm'):,.2f}[/bold green]" if _get_q_val(y, 'ttm') is not None else "-"),
+                ("Dividend (TTM)", lambda y: f"{_get_q_val(y, 'dividend_ttm'):,.2f}" if _get_q_val(y, 'dividend_ttm') is not None else "-"),
+                ("Payout Ratio", lambda y: f"{_get_q_val(y, 'payout_ratio_pct'):.1f}%" if _get_q_val(y, 'payout_ratio_pct') is not None else "-"),
+                ("Div Yield", lambda y: f"[magenta]{_get_q_val(y, 'dividend_yield_pct'):.2f}%[/magenta]" if _get_q_val(y, 'dividend_yield_pct') is not None else "-"),
+            ]
             
-        cagr_rev_str = f"+{report.growth.revenue_cagr_3y:.1f}%" if report.growth.revenue_cagr_3y is not None else "N/A"
-        cagr_eps_str = f"+{report.growth.eps_cagr_3y:.1f}%" if report.growth.eps_cagr_3y is not None else "N/A"
-        
-        growth_meta_text = Text()
-        growth_meta_text.append(f"  • Revenue YoY Growth: {report.growth.revenue_growth_yoy:+.1f}%  |  Revenue 3-Year CAGR: {cagr_rev_str}\n", style="cyan")
-        growth_meta_text.append(f"  • Net Income YoY Growth: {report.growth.net_income_growth_yoy:+.1f}%  |  EPS YoY Growth: {report.growth.eps_growth_yoy:+.1f}%  |  EPS 3-Year CAGR: {cagr_eps_str}\n", style="yellow")
-        
-        console.print(Panel(growth_summary_table, border_style="cyan", subtitle=growth_meta_text, subtitle_align="left"))
+            for row_label, val_fn in rows:
+                matrix_table.add_row(row_label, *[val_fn(y) for y in mat.years])
+                
+            console.print(Panel(matrix_table, border_style="cyan"))
+        else:
+            growth_summary_table = Table(title="[bold cyan]📊 PERFORMA FINANSIAL, EPS & REVENUE MULTI-YEAR[/bold cyan]", box=box.ROUNDED)
+            growth_summary_table.add_column("Tahun Buku", justify="center", style="bold")
+            growth_summary_table.add_column("Pendapatan (Revenue)", justify="right")
+            growth_summary_table.add_column("Laba Bersih (Net Income)", justify="right")
+            growth_summary_table.add_column("EPS (Rp/lembar)", justify="right", style="bold yellow")
+            growth_summary_table.add_column("Net Profit Margin", justify="right")
+            
+            if report.growth.revenue_history:
+                for row in report.growth.revenue_history:
+                    rev_val = row.get("revenue", 0)
+                    ni_val = row.get("net_income", 0)
+                    eps_val = row.get("eps", 0)
+                    npm_val = (ni_val / rev_val * 100) if rev_val > 0 else 0.0
+                    year_label = f"⭐ {row.get('year')} (Aktif)" if row.get('year') == 2026 else str(row.get('year'))
+                    growth_summary_table.add_row(
+                        year_label,
+                        f"Rp{rev_val / 1e12:,.2f} T",
+                        f"Rp{ni_val / 1e12:,.2f} T",
+                        f"Rp{eps_val:,.2f}",
+                        f"{npm_val:.1f}%"
+                    )
+            console.print(Panel(growth_summary_table, border_style="cyan"))
 
         # Banking metrics if available
         if report.bank_metrics:

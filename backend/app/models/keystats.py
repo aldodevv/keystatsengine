@@ -48,6 +48,9 @@ class BankSpecificMetrics(BaseModel):
     cost_of_credit: Optional[float] = None  # CoC (%)
 
 
+from app.models.financial_matrix import StockbitFinancialMatrix
+
+
 class RawKeyStats(BaseModel):
     ticker: str = Field(description="IDX Stock Ticker (e.g. BBRI, ASII, ADRO)")
     name: str = Field(description="Company Full Name")
@@ -66,6 +69,9 @@ class RawKeyStats(BaseModel):
     current_period: FinancialPeriod
     previous_period: Optional[FinancialPeriod] = None
     historical_periods: List[FinancialPeriod] = Field(default_factory=list)
+    
+    # Stockbit-Grade Multi-Year Quarterly Financial Matrix (2020-2026+)
+    financial_matrix: Optional[StockbitFinancialMatrix] = None
     
     # Market & Valuation raw indicators
     dps: float = 0.0  # Dividend per share

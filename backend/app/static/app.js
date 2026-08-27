@@ -39,6 +39,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let showMaOverlays = true;
     let showFundOverlays = true;
     let cachedChartData = null;
+    let currentFinancialMatrixTab = 'eps';
 
     // -------------------------------------------------------------
     // Formatting Helpers (Reactive to currentCurrency)
@@ -575,57 +576,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // Financial Performance (Revenue, Net Income, EPS) & 4-Year History
-        const revVal = data.revenue || data.growth?.revenue_current || 0;
-        const niVal = data.net_income || data.growth?.net_income_current || 0;
-        const epsVal = data.eps || data.growth?.eps_current || 0;
-        const revGrowth = data.growth?.revenue_growth_yoy || 0;
-        const niGrowth = data.growth?.net_income_growth_yoy || 0;
-        const epsGrowth = data.growth?.eps_growth_yoy || 0;
-        const cagrRev = data.growth?.revenue_cagr_3y;
-        const cagrEps = data.growth?.eps_cagr_3y;
-
-        setTxt('r-revenue-val', formatLargeCashFlow(revVal));
-        setTxt('r-revenue-growth-badge', `${revGrowth >= 0 ? '+' : ''}${revGrowth.toFixed(1)}% YoY`);
-        setTxt('r-net-income-val', formatLargeCashFlow(niVal));
-        setTxt('r-net-income-growth-badge', `${niGrowth >= 0 ? '+' : ''}${niGrowth.toFixed(1)}% YoY`);
-        setTxt('r-eps-val', formatPrice(epsVal));
-        setTxt('r-eps-growth-badge', `${epsGrowth >= 0 ? '+' : ''}${epsGrowth.toFixed(1)}% YoY`);
-
-        setTxt('r-cagr-rev', cagrRev !== null && cagrRev !== undefined ? `${cagrRev >= 0 ? '+' : ''}${cagrRev.toFixed(1)}%` : 'N/A');
-        setTxt('r-cagr-eps', cagrEps !== null && cagrEps !== undefined ? `${cagrEps >= 0 ? '+' : ''}${cagrEps.toFixed(1)}%` : 'N/A');
-
-        // Multi-Year History Table Rows
-        const historyTbody = document.getElementById('r-history-tbody');
-        if (historyTbody) {
-            const histList = data.growth?.revenue_history || [];
-            if (histList.length > 0) {
-                historyTbody.innerHTML = histList.map((item, idx) => {
-                    const npm = item.revenue > 0 ? (item.net_income / item.revenue * 100).toFixed(1) : '0.0';
-                    const isLatest = idx === 0;
-                    const badgeYear = isLatest ? `<span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">⭐ ${item.year} (Aktif / TTM)</span>` : item.year;
-                    return `
-                        <tr class="hover:bg-dark-surface/50 transition">
-                            <td class="p-3 font-bold">${badgeYear}</td>
-                            <td class="p-3 text-right font-mono text-cyan-400">${formatLargeCashFlow(item.revenue)}</td>
-                            <td class="p-3 text-right font-mono text-emerald-400">${formatLargeCashFlow(item.net_income)}</td>
-                            <td class="p-3 text-right font-mono font-bold text-amber-300">${formatPrice(item.eps)}</td>
-                            <td class="p-3 text-right font-mono text-slate-300">${npm}%</td>
-                        </tr>
-                    `;
-                }).join('');
-            } else {
-                historyTbody.innerHTML = `
-                    <tr>
-                        <td class="p-3 font-bold"><span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">⭐ 2024/TTM (Aktif)</span></td>
-                        <td class="p-3 text-right font-mono text-cyan-400">${formatLargeCashFlow(revVal)}</td>
-                        <td class="p-3 text-right font-mono text-emerald-400">${formatLargeCashFlow(niVal)}</td>
-                        <td class="p-3 text-right font-mono font-bold text-amber-300">${formatPrice(epsVal)}</td>
-                        <td class="p-3 text-right font-mono text-slate-300">${(data.profitability?.npm || 0).toFixed(1)}%</td>
-                    </tr>
-                `;
-            }
-        }
+        // Render Stockbit-Grade Multi-Year Quarterly Financial Matrix (2020 - 2026+)
+        renderStockbitFinancialMatrix(data, currentFinancialMatrixTab);
 
         // High-Conviction Buy Engine & 10-Point Checklist
         if (data.buy_conviction) {
@@ -761,6 +713,128 @@ document.addEventListener('DOMContentLoaded', () => {
             const t = chip.textContent.trim();
             if (singleInput) singleInput.value = t;
             loadSingleEmiten(t);
+        });
+    });
+
+    // -------------------------------------------------------------
+    // 2.4 Stockbit-Grade Multi-Year Quarterly Financial Matrix
+    // -------------------------------------------------------------
+    function renderStockbitFinancialMatrix(data, mode = 'eps') {
+        currentFinancialMatrixTab = mode;
+        const tbody = document.getElementById('matrix-tbody');
+        const colTitle = document.getElementById('matrix-col-title');
+        if (!tbody || !data) return;
+
+        if (colTitle) {
+            colTitle.textContent = currentCurrency === 'USD' ? 'Period (USD)' : 'Period (IDR)';
+        }
+
+        const matrix = data.financial_matrix;
+        const years = (matrix && matrix.years && matrix.years.length > 0) ? matrix.years : [2026, 2025, 2024, 2023, 2022, 2021, 2020];
+        
+        let targetMatrix = {};
+        if (matrix) {
+            if (mode === 'eps') targetMatrix = matrix.eps_matrix || {};
+            else if (mode === 'revenue') targetMatrix = matrix.revenue_matrix || {};
+            else if (mode === 'net_income') targetMatrix = matrix.net_income_matrix || {};
+        }
+
+        const formatVal = (val, isPercentage = false) => {
+            if (val === null || val === undefined || isNaN(val)) return '-';
+            if (isPercentage) return `${Number(val).toFixed(2)}%`;
+            if (mode === 'eps') {
+                return formatPrice(val, false);
+            } else {
+                const num = Number(val);
+                if (currentCurrency === 'USD') {
+                    const usdVal = num * liveFxRate.idr_to_usd;
+                    return (usdVal / 1e6).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + ' M';
+                }
+                return (num / 1e9).toLocaleString('id-ID', { minimumFractionDigits: 0, maximumFractionDigits: 0 }) + ' B';
+            }
+        };
+
+        const rowsConfig = [
+            { key: 'q1', label: 'Q1', isPct: false, highlight: false },
+            { key: 'q2', label: 'Q2', isPct: false, highlight: false },
+            { key: 'q3', label: 'Q3', isPct: false, highlight: false },
+            { key: 'q4', label: 'Q4', isPct: false, highlight: false },
+            { key: 'annualised', label: 'Annualised', isPct: false, highlight: true, style: 'font-bold text-amber-300' },
+            { key: 'ttm', label: 'TTM (Q1)', isPct: false, highlight: true, style: 'font-bold text-brand-400' },
+            { key: 'dividend_ttm', label: 'Dividend (TTM)', isPct: false, highlight: false, style: 'text-purple-300' },
+            { key: 'payout_ratio_pct', label: 'Payout Ratio', isPct: true, highlight: false },
+            { key: 'dividend_yield_pct', label: 'Div Yield', isPct: true, highlight: false, style: 'text-emerald-400 font-bold' },
+        ];
+
+        tbody.innerHTML = rowsConfig.map(row => {
+            const cells = years.map(y => {
+                const yearData = targetMatrix[String(y)];
+                const val = yearData ? yearData[row.key] : null;
+                const formatted = formatVal(val, row.isPct);
+                const cellColor = row.style || (formatted !== '-' ? 'text-slate-200' : 'text-slate-500');
+                return `<td class="p-3 text-right font-mono ${cellColor}">${formatted}</td>`;
+            }).join('');
+
+            const rowBg = row.highlight ? 'bg-dark-surface/40' : 'hover:bg-dark-surface/30';
+            const labelColor = row.highlight ? 'text-white font-bold' : 'text-slate-400 font-medium';
+            return `
+                <tr class="${rowBg} transition">
+                    <td class="p-3 ${labelColor}">${row.label}</td>
+                    ${cells}
+                </tr>
+            `;
+        }).join('');
+
+        // Populate Right-hand Breakdown Panels
+        const setValText = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined && val !== null) el.textContent = val;
+        };
+
+        if (matrix) {
+            const isTTM = matrix.income_statement_ttm;
+            if (isTTM) {
+                setValText('sb-ttm-rev', formatLargeCashFlow(isTTM.revenue_ttm));
+                setValText('sb-ttm-gp', formatLargeCashFlow(isTTM.gross_profit_ttm));
+                setValText('sb-ttm-ebitda', formatLargeCashFlow(isTTM.ebitda_ttm));
+                setValText('sb-ttm-ni', formatLargeCashFlow(isTTM.net_income_ttm));
+            }
+
+            const bsQ = matrix.balance_sheet_quarter;
+            if (bsQ) {
+                setValText('sb-bs-cash', formatLargeCashFlow(bsQ.cash));
+                setValText('sb-bs-assets', formatLargeCashFlow(bsQ.total_assets));
+                setValText('sb-bs-liab', formatLargeCashFlow(bsQ.total_liabilities));
+                setValText('sb-bs-wc', formatLargeCashFlow(bsQ.working_capital));
+                setValText('sb-bs-debt', formatLargeCashFlow(bsQ.total_debt));
+                setValText('sb-bs-equity', formatLargeCashFlow(bsQ.total_equity));
+            }
+
+            const psM = matrix.per_share_metrics;
+            if (psM) {
+                setValText('sb-ps-eps-ttm', formatPrice(psM.eps_ttm));
+                setValText('sb-ps-eps-ann', formatPrice(psM.eps_annualised));
+                setValText('sb-ps-rev', formatPrice(psM.revenue_per_share_ttm));
+                setValText('sb-ps-cash', formatPrice(psM.cash_per_share));
+                setValText('sb-ps-bvps', formatPrice(psM.book_value_per_share));
+            }
+        }
+    }
+
+    // Matrix Tab Click Handlers
+    document.querySelectorAll('.matrix-tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.matrix-tab-btn').forEach(b => {
+                b.classList.remove('bg-brand-600', 'text-white', 'font-bold', 'shadow-sm');
+                b.classList.add('text-slate-400');
+            });
+            btn.classList.add('bg-brand-600', 'text-white', 'font-bold', 'shadow-sm');
+            btn.classList.remove('text-slate-400');
+            
+            const mode = btn.dataset.mode || 'eps';
+            if (cachedSingleEmitenData) {
+                renderStockbitFinancialMatrix(cachedSingleEmitenData, mode);
+            }
         });
     });
 

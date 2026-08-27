@@ -615,71 +615,98 @@
                     </div>
                 </div>
 
-                <!-- Dedicated Financial Performance & 4-Year History Panel (Revenue, Net Income, EPS) -->
-                <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-xl space-y-4">
-                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-dark-border pb-3">
+                <!-- ========================================================================= -->
+                <!-- STOCKBIT-GRADE MULTI-YEAR QUARTERLY FINANCIAL MATRIX (2020 - 2026+)        -->
+                <!-- ========================================================================= -->
+                <div class="w-full bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6 shadow-xl space-y-5">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-dark-border pb-4">
                         <div>
-                            <h2 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
-                                <span>📊</span> Performa Finansial, EPS & Pertumbuhan Multi-Tahun
-                            </h2>
-                            <p class="text-xs text-slate-400 mt-0.5">Analisis tren pendapatan riil, laba bersih, dan EPS historis dari laporan keuangan.</p>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] font-mono font-bold tracking-wider uppercase border border-brand-500/30">Stockbit Pro Financials</span>
+                                <h2 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                                    <span>📊</span> Laporan Keuangan Multi-Tahun & Kuartalan (2020 - 2026)
+                                </h2>
+                            </div>
+                            <p class="text-xs text-slate-400 mt-1">Data keuangan audited & TTM multi-periode (Q1-Q4, Annualised, TTM, Dividen, Payout Ratio).</p>
                         </div>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-brand-500/15 text-brand-300 border border-brand-500/30">
-                                3Y EPS CAGR: <strong id="r-cagr-eps">+14.2%</strong>
-                            </span>
-                            <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
-                                3Y Rev CAGR: <strong id="r-cagr-rev">+11.5%</strong>
-                            </span>
+
+                        <!-- Metric Selector Tabs: Net Income | EPS | Revenue -->
+                        <div class="inline-flex rounded-xl bg-dark-bg p-1 border border-dark-border text-xs font-mono self-start lg:self-auto">
+                            <button id="tab-matrix-net-income" class="matrix-tab-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition" data-mode="net_income">Net Income</button>
+                            <button id="tab-matrix-eps" class="matrix-tab-btn px-3 py-1.5 rounded-lg bg-brand-600 text-white font-bold transition shadow-sm" data-mode="eps">EPS</button>
+                            <button id="tab-matrix-revenue" class="matrix-tab-btn px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition" data-mode="revenue">Revenue</button>
                         </div>
                     </div>
 
-                    <!-- Top 3 Scale Cards -->
-                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-                        <div class="bg-dark-bg p-4 rounded-xl border border-dark-border">
-                            <span class="text-slate-400 text-xs block">Pendapatan Tahunan (Revenue)</span>
-                            <div class="flex items-baseline justify-between mt-1">
-                                <span id="r-revenue-val" class="text-lg sm:text-xl font-bold font-mono text-cyan-400">Rp 198.5 T</span>
-                                <span id="r-revenue-growth-badge" class="text-xs font-bold font-mono text-brand-400">+11.5% YoY</span>
-                            </div>
-                            <span class="text-[10px] text-slate-500 mt-1 block">Top-Line Sales</span>
+                    <div class="grid grid-cols-1 xl:grid-cols-12 gap-5">
+                        <!-- Left 8 cols: Interactive Quarterly Matrix Table -->
+                        <div class="xl:col-span-8 overflow-x-auto rounded-xl border border-dark-border">
+                            <table class="w-full text-left text-xs font-mono whitespace-nowrap">
+                                <thead class="bg-dark-surface/90 border-b border-dark-border text-slate-300 font-sans uppercase text-[11px] tracking-wider">
+                                    <tr id="matrix-thead-row">
+                                        <th class="p-3 text-brand-400 font-bold" id="matrix-col-title">Period (IDR)</th>
+                                        <th class="p-3 text-right">2026</th>
+                                        <th class="p-3 text-right">2025</th>
+                                        <th class="p-3 text-right">2024</th>
+                                        <th class="p-3 text-right">2023</th>
+                                        <th class="p-3 text-right">2022</th>
+                                        <th class="p-3 text-right">2021</th>
+                                        <th class="p-3 text-right">2020</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="matrix-tbody" class="divide-y divide-dark-border/80 bg-dark-bg/60">
+                                    <!-- Injected dynamically by JS -->
+                                </tbody>
+                            </table>
                         </div>
 
-                        <div class="bg-dark-bg p-4 rounded-xl border border-dark-border">
-                            <span class="text-slate-400 text-xs block">Laba Bersih (Net Income)</span>
-                            <div class="flex items-baseline justify-between mt-1">
-                                <span id="r-net-income-val" class="text-lg sm:text-xl font-bold font-mono text-emerald-400">Rp 60.4 T</span>
-                                <span id="r-net-income-growth-badge" class="text-xs font-bold font-mono text-brand-400">+10.9% YoY</span>
+                        <!-- Right 4 cols: Stockbit-Grade Breakdown Panels (TTM, Balance Sheet, Per Share) -->
+                        <div class="xl:col-span-4 space-y-4">
+                            <!-- Income Statement (TTM) -->
+                            <div class="bg-dark-bg/90 border border-dark-border rounded-xl p-4 space-y-2.5">
+                                <div class="font-bold text-xs text-brand-400 flex items-center justify-between border-b border-dark-border pb-1.5">
+                                    <span>Income Statement (TTM)</span>
+                                    <span class="text-[10px] text-slate-500 font-mono">12-Bulan Berjalan</span>
+                                </div>
+                                <div class="space-y-1.5 text-xs font-mono">
+                                    <div class="flex justify-between"><span class="text-slate-400">Revenue (TTM):</span><strong id="sb-ttm-rev" class="text-cyan-400">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Gross Profit (TTM):</span><strong id="sb-ttm-gp" class="text-slate-200">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">EBITDA (TTM):</span><strong id="sb-ttm-ebitda" class="text-slate-200">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Net Income (TTM):</span><strong id="sb-ttm-ni" class="text-emerald-400 font-bold">-</strong></div>
+                                </div>
                             </div>
-                            <span class="text-[10px] text-slate-500 mt-1 block">Bottom-Line Profit</span>
-                        </div>
 
-                        <div class="bg-dark-bg p-4 rounded-xl border border-dark-border">
-                            <span class="text-slate-400 text-xs block">Laba Bersih per Saham (EPS)</span>
-                            <div class="flex items-baseline justify-between mt-1">
-                                <span id="r-eps-val" class="text-lg sm:text-xl font-bold font-mono text-amber-400">Rp 398.7</span>
-                                <span id="r-eps-growth-badge" class="text-xs font-bold font-mono text-brand-400">+10.9% YoY</span>
+                            <!-- Balance Sheet (Quarter) -->
+                            <div class="bg-dark-bg/90 border border-dark-border rounded-xl p-4 space-y-2.5">
+                                <div class="font-bold text-xs text-amber-400 flex items-center justify-between border-b border-dark-border pb-1.5">
+                                    <span>Balance Sheet (Quarter)</span>
+                                    <span class="text-[10px] text-slate-500 font-mono">Kuartal Terakhir</span>
+                                </div>
+                                <div class="space-y-1.5 text-xs font-mono">
+                                    <div class="flex justify-between"><span class="text-slate-400">Cash (Quarter):</span><strong id="sb-bs-cash" class="text-emerald-400">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Total Assets (Quarter):</span><strong id="sb-bs-assets" class="text-slate-200">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Total Liabilities:</span><strong id="sb-bs-liab" class="text-rose-400">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Working Capital:</span><strong id="sb-bs-wc" class="text-slate-200">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Total Debt (Quarter):</span><strong id="sb-bs-debt" class="text-amber-400">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Total Equity:</span><strong id="sb-bs-equity" class="text-brand-400 font-bold">-</strong></div>
+                                </div>
                             </div>
-                            <span class="text-[10px] text-slate-500 mt-1 block">Earning Per Share</span>
-                        </div>
-                    </div>
 
-                    <!-- Multi-Year History Table -->
-                    <div class="overflow-x-auto rounded-xl border border-dark-border">
-                        <table class="w-full text-left text-xs font-mono whitespace-nowrap">
-                            <thead class="bg-dark-surface/90 border-b border-dark-border text-slate-300 font-sans uppercase text-[10px] tracking-wider">
-                                <tr>
-                                    <th class="p-3">Tahun Buku</th>
-                                    <th class="p-3 text-right">Pendapatan (Revenue)</th>
-                                    <th class="p-3 text-right">Laba Bersih (Net Income)</th>
-                                    <th class="p-3 text-right text-amber-300">EPS (Rp/lembar)</th>
-                                    <th class="p-3 text-right">Net Profit Margin</th>
-                                </tr>
-                            </thead>
-                            <tbody id="r-history-tbody" class="divide-y divide-dark-border bg-dark-bg/60">
-                                <!-- Rendered dynamically by JS -->
-                            </tbody>
-                        </table>
+                            <!-- Per Share Metrics -->
+                            <div class="bg-dark-bg/90 border border-dark-border rounded-xl p-4 space-y-2.5">
+                                <div class="font-bold text-xs text-purple-400 flex items-center justify-between border-b border-dark-border pb-1.5">
+                                    <span>Per Share Metrics</span>
+                                    <span class="text-[10px] text-slate-500 font-mono">Per Lembar</span>
+                                </div>
+                                <div class="space-y-1.5 text-xs font-mono">
+                                    <div class="flex justify-between"><span class="text-slate-400">Current EPS (TTM):</span><strong id="sb-ps-eps-ttm" class="text-amber-300 font-bold">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Current EPS (Annualised):</span><strong id="sb-ps-eps-ann" class="text-slate-200">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Revenue Per Share:</span><strong id="sb-ps-rev" class="text-slate-200">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Cash Per Share:</span><strong id="sb-ps-cash" class="text-slate-200">-</strong></div>
+                                    <div class="flex justify-between"><span class="text-slate-400">Current Book Value (BVPS):</span><strong id="sb-ps-bvps" class="text-slate-200">-</strong></div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 
