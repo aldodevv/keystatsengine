@@ -600,10 +600,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (historyTbody) {
             const histList = data.growth?.revenue_history || [];
             if (histList.length > 0) {
-                historyTbody.innerHTML = histList.map(item => {
+                historyTbody.innerHTML = histList.map((item, idx) => {
                     const npm = item.revenue > 0 ? (item.net_income / item.revenue * 100).toFixed(1) : '0.0';
-                    const isLatest = item.year === 2024;
-                    const badgeYear = isLatest ? `<span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">⭐ ${item.year} (Aktif)</span>` : item.year;
+                    const isLatest = idx === 0;
+                    const badgeYear = isLatest ? `<span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">⭐ ${item.year} (Aktif / TTM)</span>` : item.year;
                     return `
                         <tr class="hover:bg-dark-surface/50 transition">
                             <td class="p-3 font-bold">${badgeYear}</td>
@@ -617,7 +617,7 @@ document.addEventListener('DOMContentLoaded', () => {
             } else {
                 historyTbody.innerHTML = `
                     <tr>
-                        <td class="p-3 font-bold">2024</td>
+                        <td class="p-3 font-bold"><span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">⭐ 2024/TTM (Aktif)</span></td>
                         <td class="p-3 text-right font-mono text-cyan-400">${formatLargeCashFlow(revVal)}</td>
                         <td class="p-3 text-right font-mono text-emerald-400">${formatLargeCashFlow(niVal)}</td>
                         <td class="p-3 text-right font-mono font-bold text-amber-300">${formatPrice(epsVal)}</td>

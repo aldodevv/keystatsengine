@@ -138,7 +138,20 @@ class YFinanceProvider(BaseDataProvider):
         return []
 
     def _extract_period(self, inc, bal, cf, col_idx: int, shares: float) -> FinancialPeriod:
-        year = 2024 - col_idx
+        from datetime import datetime
+        year = datetime.now().year - col_idx
+        
+        if inc is not None and not inc.empty and col_idx < len(inc.columns):
+            col_name = inc.columns[col_idx]
+            if hasattr(col_name, 'year'):
+                year = int(col_name.year)
+            elif hasattr(col_name, 'strftime'):
+                year = int(col_name.strftime('%Y'))
+            else:
+                try:
+                    year = int(str(col_name)[:4])
+                except Exception:
+                    pass
         
         def _get_val(df, keys, default=0.0):
             if df is None or df.empty or col_idx >= len(df.columns):
