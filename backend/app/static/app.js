@@ -1026,14 +1026,28 @@ document.addEventListener('DOMContentLoaded', () => {
             if (legVol) legVol.textContent = (last.volume / 1e6).toFixed(1) + 'M';
         }
 
-        // Responsive resize
-        window.addEventListener('resize', () => {
-            if (tvChartInstance && container) {
-                tvChartInstance.applyOptions({
-                    width: container.clientWidth
-                });
-            }
-        });
+        // Responsive resize using ResizeObserver & window resize
+        if (window.ResizeObserver && container) {
+            const ro = new ResizeObserver(entries => {
+                for (const entry of entries) {
+                    const cr = entry.contentRect;
+                    if (tvChartInstance && cr.width > 0) {
+                        tvChartInstance.applyOptions({
+                            width: cr.width
+                        });
+                    }
+                }
+            });
+            ro.observe(container);
+        } else {
+            window.addEventListener('resize', () => {
+                if (tvChartInstance && container) {
+                    tvChartInstance.applyOptions({
+                        width: container.clientWidth
+                    });
+                }
+            });
+        }
     }
 
     function renderTechnicalStatusBar(data) {
