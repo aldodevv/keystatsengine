@@ -9,7 +9,12 @@ from app.models.keystats import RawKeyStats
 
 class BaseDataProvider(ABC):
     @abstractmethod
-    def get_keystats(self, ticker: str) -> Optional[RawKeyStats]:
+    def get_keystats(
+        self,
+        ticker: str,
+        override_price: Optional[float] = None,
+        force_live: bool = False
+    ) -> Optional[RawKeyStats]:
         """Fetches raw keystats and financial statements for a given ticker."""
         pass
         

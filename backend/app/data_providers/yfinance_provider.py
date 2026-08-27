@@ -105,6 +105,13 @@ class YFinanceProvider(BaseDataProvider):
         current_period = self._extract_period(income_stmt, balance_sheet, cashflow, col_idx=0, shares=shares)
         previous_period = self._extract_period(income_stmt, balance_sheet, cashflow, col_idx=1, shares=shares)
         
+        historical_periods = []
+        num_cols = len(income_stmt.columns) if income_stmt is not None and not income_stmt.empty else 0
+        for col_idx in range(1, min(num_cols, 5)):
+            hist_p = self._extract_period(income_stmt, balance_sheet, cashflow, col_idx=col_idx, shares=shares)
+            if hist_p and (hist_p.revenue > 0 or hist_p.net_income > 0):
+                historical_periods.append(hist_p)
+        
         return RawKeyStats(
             ticker=clean_ticker,
             name=f"{clean_ticker} Tbk",
@@ -114,7 +121,8 @@ class YFinanceProvider(BaseDataProvider):
             shares_outstanding=float(shares),
             market_cap=float(market_cap),
             current_period=current_period,
-            previous_period=previous_period
+            previous_period=previous_period,
+            historical_periods=historical_periods
         )
 
     def list_all_tickers(self) -> List[str]:

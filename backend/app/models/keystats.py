@@ -49,18 +49,18 @@ class BankSpecificMetrics(BaseModel):
 
 
 class RawKeyStats(BaseModel):
-    ticker: str = Field(..., description="IDX Stock Ticker (e.g. BBRI, ASII, ADRO)")
-    name: str = Field(..., description="Company Full Name")
+    ticker: str = Field(description="IDX Stock Ticker (e.g. BBRI, ASII, ADRO)")
+    name: str = Field(description="Company Full Name")
     sector: str = Field(default="General", description="IDX Sector")
     industry: str = Field(default="General", description="IDX Sub-industry")
     # Price & Market Information
-    current_price: float = Field(..., description="Latest Closing / Current Price (IDR)")
+    current_price: float = Field(description="Latest Closing / Current Price (IDR)")
     previous_close: Optional[float] = Field(default=None, description="Previous Day Closing Price (IDR)")
     price_change_pct: Optional[float] = Field(default=0.0, description="Price change vs previous close in %")
     is_realtime: bool = Field(default=True, description="Whether price is from live realtime quote")
     last_updated_time: Optional[str] = Field(default=None, description="Timestamp of price quote")
-    shares_outstanding: float = Field(..., description="Total Listed Shares")
-    market_cap: float = Field(..., description="Market Capitalization (IDR)")
+    shares_outstanding: float = Field(description="Total Listed Shares")
+    market_cap: float = Field(description="Market Capitalization (IDR)")
     
     # Financial Statements (Current & Previous for YoY / Piotroski / Altman)
     current_period: FinancialPeriod

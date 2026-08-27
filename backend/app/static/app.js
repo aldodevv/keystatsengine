@@ -1,10 +1,343 @@
 /**
  * Frontend JavaScript for IDX Emiten KeyStats & Scoring Engine
  * Stockbit-Grade Fundamental Intelligence Terminal
+ * With Live Multi-Source IDR ⇄ USD Currency Conversion
  */
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('KeyStats Engine Frontend Initializing...');
+
+    // -------------------------------------------------------------
+    // 0. Currency State & Realtime Forex Engine
+    // -------------------------------------------------------------
+    let currentCurrency = localStorage.getItem('idx_keystats_currency') || 'IDR';
+    let liveFxRate = {
+        usd_to_idr: 17712.0,
+        idr_to_usd: 1.0 / 17712.0,
+        source: 'Yahoo Finance FX',
+        last_updated_formatted: 'Live',
+        change_24h: 0,
+        change_pct_24h: 0
+    };
+
+    // Cached data for instant re-rendering across currency toggles
+    let cachedSingleEmitenData = null;
+    let cachedComparisonData = null;
+    let cachedScreenerData = null;
+    let currentMarketData = null;
+    let allMarketEmitens = [];
+    let currentScreenerResults = [];
+    let currentActiveTicker = 'BBRI';
+
+    // -------------------------------------------------------------
+    // Formatting Helpers (Reactive to currentCurrency)
+    // -------------------------------------------------------------
+    function formatPrice(valInIdr, showPrefix = true) {
+        if (valInIdr === null || valInIdr === undefined || isNaN(valInIdr)) return '-';
+        const num = Number(valInIdr);
+        if (currentCurrency === 'USD') {
+            const usdVal = num * liveFxRate.idr_to_usd;
+            const digits = usdVal < 1 ? 3 : 2;
+            const formatted = usdVal.toLocaleString('en-US', { minimumFractionDigits: digits, maximumFractionDigits: digits });
+            return showPrefix ? `$${formatted}` : formatted;
+        } else {
+            const formatted = num.toLocaleString('id-ID');
+            return showPrefix ? `Rp ${formatted}` : formatted;
+        }
+    }
+
+    function formatMarketCap(capInIdr) {
+        if (!capInIdr || isNaN(capInIdr)) return '-';
+        if (currentCurrency === 'USD') {
+            const usdCap = capInIdr * liveFxRate.idr_to_usd;
+            if (usdCap >= 1e9) {
+                return `$ ${(usdCap / 1e9).toFixed(2)} B`;
+            } else {
+                return `$ ${(usdCap / 1e6).toFixed(1)} M`;
+            }
+        } else {
+            if (capInIdr >= 1e12) {
+                return `Rp ${(capInIdr / 1e12).toFixed(1)} T`;
+            } else {
+                return `Rp ${(capInIdr / 1e9).toFixed(1)} M`;
+            }
+        }
+    }
+
+    function formatLargeCashFlow(valInIdr) {
+        if (valInIdr === null || valInIdr === undefined || isNaN(valInIdr)) return '-';
+        if (currentCurrency === 'USD') {
+            const usdVal = valInIdr * liveFxRate.idr_to_usd;
+            if (Math.abs(usdVal) >= 1e9) {
+                return `$ ${(usdVal / 1e9).toFixed(2)} B`;
+            } else {
+                return `$ ${(usdVal / 1e6).toFixed(1)} M`;
+            }
+        } else {
+            if (Math.abs(valInIdr) >= 1e12) {
+                return `Rp ${(valInIdr / 1e12).toFixed(1)} T`;
+            } else {
+                return `Rp ${(valInIdr / 1e9).toFixed(1)} M`;
+            }
+        }
+    }
+
+    function getCurrencySymbol() {
+        return currentCurrency === 'USD' ? '$' : 'Rp';
+    }
+
+    // -------------------------------------------------------------
+    // Live FX Rate Loader & Realtime Synchronizer
+    // -------------------------------------------------------------
+    async function fetchLiveCurrencyRate(forceRefresh = false) {
+        try {
+            const resp = await fetch(`/api/v1/currency/rate?refresh=${forceRefresh}`);
+            if (resp.ok) {
+                const data = await resp.json();
+                liveFxRate = data;
+                updateFxUI();
+            }
+        } catch (err) {
+            console.warn('Could not fetch live currency rate, using cache/fallback:', err);
+        }
+    }
+
+    function updateFxUI() {
+        const navPill = document.getElementById('nav-fx-rate-text');
+        if (navPill) {
+            navPill.textContent = `1 USD = Rp ${liveFxRate.usd_to_idr.toLocaleString('id-ID')}`;
+        }
+
+        const modalHighlight = document.getElementById('modal-fx-rate-highlight');
+        if (modalHighlight) {
+            modalHighlight.textContent = `1 USD = Rp ${liveFxRate.usd_to_idr.toLocaleString('id-ID')}`;
+        }
+
+        const modalInverse = document.getElementById('modal-fx-inverse');
+        if (modalInverse) {
+            modalInverse.textContent = `1 IDR = $${liveFxRate.idr_to_usd.toFixed(8)}`;
+        }
+
+        const modalSource = document.getElementById('modal-fx-source');
+        if (modalSource) {
+            modalSource.textContent = liveFxRate.source || 'Live FX';
+        }
+
+        const modalUpdated = document.getElementById('modal-fx-updated');
+        if (modalUpdated) {
+            modalUpdated.textContent = `Update: ${liveFxRate.last_updated_formatted || 'Hari Ini'}`;
+        }
+
+        // Recalculate converter if open
+        calculateConverterResult();
+    }
+
+    // -------------------------------------------------------------
+    // Global Currency Switcher (IDR / USD Toggle)
+    // -------------------------------------------------------------
+    function setGlobalCurrency(currency) {
+        currentCurrency = currency.toUpperCase();
+        localStorage.setItem('idx_keystats_currency', currentCurrency);
+
+        const btnIdr = document.getElementById('currency-btn-idr');
+        const btnUsd = document.getElementById('currency-btn-usd');
+
+        if (currentCurrency === 'USD') {
+            if (btnUsd) {
+                btnUsd.className = "currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-white bg-cyan-600 shadow-sm flex items-center gap-1";
+            }
+            if (btnIdr) {
+                btnIdr.className = "currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-1";
+            }
+        } else {
+            if (btnIdr) {
+                btnIdr.className = "currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-white bg-brand-600 shadow-sm flex items-center gap-1";
+            }
+            if (btnUsd) {
+                btnUsd.className = "currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-1";
+            }
+        }
+
+        // Update sim price input placeholder
+        const simInput = document.getElementById('sim-price-input');
+        if (simInput) {
+            simInput.placeholder = currentCurrency === 'USD' ? '$ harga...' : 'Rp harga...';
+        }
+
+        // Re-render active views with updated currency
+        if (cachedSingleEmitenData) renderSingleEmiten(cachedSingleEmitenData);
+        if (currentMarketData) renderMarketOverview(currentMarketData);
+        if (cachedComparisonData) renderComparison(cachedComparisonData);
+        if (cachedScreenerData) renderScreener(cachedScreenerData);
+    }
+
+    const btnIdr = document.getElementById('currency-btn-idr');
+    const btnUsd = document.getElementById('currency-btn-usd');
+    if (btnIdr) btnIdr.addEventListener('click', () => setGlobalCurrency('IDR'));
+    if (btnUsd) btnUsd.addEventListener('click', () => setGlobalCurrency('USD'));
+
+    // -------------------------------------------------------------
+    // Interactive Currency Converter Modal Logic
+    // -------------------------------------------------------------
+    const currencyModal = document.getElementById('currency-modal');
+    const fxRatePill = document.getElementById('fx-rate-pill');
+    const closeCurrencyModalBtn = document.getElementById('close-currency-modal-btn');
+    const modalRefreshBtn = document.getElementById('modal-refresh-rate-btn');
+    const converterInputFrom = document.getElementById('converter-input-from');
+    const converterInputTo = document.getElementById('converter-input-to');
+    const converterSwapBtn = document.getElementById('converter-swap-btn');
+    const converterCopyBtn = document.getElementById('converter-copy-btn');
+    const converterSummaryText = document.getElementById('converter-summary-text');
+    const modalRefreshSpinner = document.getElementById('modal-refresh-spinner');
+
+    let converterDirection = 'IDR_TO_USD'; // 'IDR_TO_USD' or 'USD_TO_IDR'
+
+    function openCurrencyModal() {
+        if (currencyModal) {
+            currencyModal.classList.remove('hidden');
+            calculateConverterResult();
+        }
+    }
+
+    function closeCurrencyModal() {
+        if (currencyModal) {
+            currencyModal.classList.add('hidden');
+        }
+    }
+
+    if (fxRatePill) fxRatePill.addEventListener('click', openCurrencyModal);
+    if (closeCurrencyModalBtn) closeCurrencyModalBtn.addEventListener('click', closeCurrencyModal);
+
+    if (currencyModal) {
+        currencyModal.addEventListener('click', (e) => {
+            if (e.target === currencyModal) closeCurrencyModal();
+        });
+    }
+
+    function calculateConverterResult() {
+        if (!converterInputFrom || !converterInputTo) return;
+        const val = parseFloat(converterInputFrom.value) || 0;
+
+        if (converterDirection === 'IDR_TO_USD') {
+            const converted = val * liveFxRate.idr_to_usd;
+            converterInputTo.value = converted.toFixed(2);
+            if (converterSummaryText) {
+                converterSummaryText.textContent = `Rp ${val.toLocaleString('id-ID')} = $${converted.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            }
+        } else {
+            const converted = val * liveFxRate.usd_to_idr;
+            converterInputTo.value = Math.round(converted);
+            if (converterSummaryText) {
+                converterSummaryText.textContent = `$${val.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} = Rp ${Math.round(converted).toLocaleString('id-ID')}`;
+            }
+        }
+    }
+
+    function swapConverterDirection() {
+        converterDirection = converterDirection === 'IDR_TO_USD' ? 'USD_TO_IDR' : 'IDR_TO_USD';
+
+        const labelFrom = document.getElementById('converter-label-from');
+        const badgeFrom = document.getElementById('converter-badge-from');
+        const symbolFrom = document.getElementById('converter-symbol-from');
+
+        const labelTo = document.getElementById('converter-label-to');
+        const badgeTo = document.getElementById('converter-badge-to');
+        const symbolTo = document.getElementById('converter-symbol-to');
+        const presetsContainer = document.getElementById('converter-presets-container');
+
+        if (converterDirection === 'IDR_TO_USD') {
+            if (labelFrom) labelFrom.textContent = "Nominal Rupiah (IDR):";
+            if (badgeFrom) { badgeFrom.textContent = "🇮🇩 Indonesia Rupiah"; badgeFrom.className = "text-[11px] font-mono text-brand-400"; }
+            if (symbolFrom) symbolFrom.textContent = "Rp";
+
+            if (labelTo) labelTo.textContent = "Hasil Konversi (USD):";
+            if (badgeTo) { badgeTo.textContent = "🇺🇸 US Dollar"; badgeTo.className = "text-[11px] font-mono text-cyan-400"; }
+            if (symbolTo) symbolTo.textContent = "$";
+
+            if (converterInputFrom) converterInputFrom.value = "10000000";
+
+            if (presetsContainer) {
+                presetsContainer.innerHTML = `
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="1000000">Rp 1 Juta</button>
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="10000000">Rp 10 Juta</button>
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="50000000">Rp 50 Juta</button>
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="100000000">Rp 100 Juta</button>
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="1000000000">Rp 1 Miliar</button>
+                `;
+                attachPresetListeners();
+            }
+        } else {
+            if (labelFrom) labelFrom.textContent = "Nominal US Dollar (USD):";
+            if (badgeFrom) { badgeFrom.textContent = "🇺🇸 US Dollar"; badgeFrom.className = "text-[11px] font-mono text-cyan-400"; }
+            if (symbolFrom) symbolFrom.textContent = "$";
+
+            if (labelTo) labelTo.textContent = "Hasil Konversi (IDR):";
+            if (badgeTo) { badgeTo.textContent = "🇮🇩 Indonesia Rupiah"; badgeTo.className = "text-[11px] font-mono text-brand-400"; }
+            if (symbolTo) symbolTo.textContent = "Rp";
+
+            if (converterInputFrom) converterInputFrom.value = "1000";
+
+            if (presetsContainer) {
+                presetsContainer.innerHTML = `
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-cyan-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="100">$100</button>
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-cyan-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="500">$500</button>
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-cyan-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="1000">$1,000</button>
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-cyan-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="5000">$5,000</button>
+                    <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-cyan-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="10000">$10,000</button>
+                `;
+                attachPresetListeners();
+            }
+        }
+        calculateConverterResult();
+    }
+
+    function attachPresetListeners() {
+        document.querySelectorAll('.conv-preset-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                const amt = chip.dataset.amount;
+                if (converterInputFrom && amt) {
+                    converterInputFrom.value = amt;
+                    calculateConverterResult();
+                }
+            });
+        });
+    }
+
+    if (converterInputFrom) {
+        converterInputFrom.addEventListener('input', calculateConverterResult);
+    }
+
+    if (converterSwapBtn) {
+        converterSwapBtn.addEventListener('click', swapConverterDirection);
+    }
+
+    if (modalRefreshBtn) {
+        modalRefreshBtn.addEventListener('click', async () => {
+            if (modalRefreshSpinner) modalRefreshSpinner.classList.add('animate-spin');
+            await fetchLiveCurrencyRate(true);
+            setTimeout(() => {
+                if (modalRefreshSpinner) modalRefreshSpinner.classList.remove('animate-spin');
+            }, 600);
+        });
+    }
+
+    if (converterCopyBtn) {
+        converterCopyBtn.addEventListener('click', () => {
+            if (converterSummaryText) {
+                navigator.clipboard.writeText(converterSummaryText.textContent.trim()).then(() => {
+                    const originalText = converterCopyBtn.innerHTML;
+                    converterCopyBtn.innerHTML = "<span>✓</span> <span>Tersalin!</span>";
+                    converterCopyBtn.classList.add('bg-brand-600', 'text-white');
+                    setTimeout(() => {
+                        converterCopyBtn.innerHTML = originalText;
+                        converterCopyBtn.classList.remove('bg-brand-600', 'text-white');
+                    }, 1500);
+                });
+            }
+        });
+    }
+
+    attachPresetListeners();
 
     // -------------------------------------------------------------
     // 1. Tab Navigation
@@ -54,7 +387,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshLiveBtn = document.getElementById('refresh-live-price-btn');
     const simPriceInput = document.getElementById('sim-price-input');
     const simPriceBtn = document.getElementById('sim-price-btn');
-    let currentActiveTicker = 'BBRI';
 
     async function loadSingleEmiten(ticker, customPrice = null, forceLive = false, isSilent = false) {
         if (!ticker) return;
@@ -63,7 +395,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         let url = `/api/v1/emiten/${ticker}?live=${forceLive}`;
         if (customPrice && customPrice > 0) {
-            url += `&price=${customPrice}`;
+            // If user inputted USD price in simulation, convert to IDR before sending
+            const priceInIdr = currentCurrency === 'USD' ? (customPrice * liveFxRate.usd_to_idr) : customPrice;
+            url += `&price=${priceInIdr}`;
         }
         
         try {
@@ -75,6 +409,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
             const data = await resp.json();
+            cachedSingleEmitenData = data;
             renderSingleEmiten(data);
         } catch (err) {
             console.error('Error loading single emiten:', err);
@@ -96,8 +431,10 @@ document.addEventListener('DOMContentLoaded', () => {
         setTxt('r-name', data.name);
         setTxt('r-sector', data.sector);
         setTxt('r-industry', data.industry);
-        setTxt('r-price', `Rp ${Number(data.current_price).toLocaleString('id-ID')}`);
-        setTxt('r-market-cap', `Rp ${(data.market_cap / 1e12).toFixed(1)} T`);
+        
+        // Formatted Price and Market Cap
+        setTxt('r-price', formatPrice(data.current_price));
+        setTxt('r-market-cap', formatMarketCap(data.market_cap));
 
         // Realtime Price Change %
         const priceChangeElem = document.getElementById('r-price-change');
@@ -143,7 +480,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 verdictBadge.className = "mt-2 px-3.5 py-1.5 rounded-xl font-extrabold text-xs sm:text-sm tracking-wide bg-rose-500 text-white shadow-lg shadow-rose-500/30";
             }
         }
-        setTxt('r-fair-value-text', `Target: Rp ${Number(data.valuation?.average_fair_value || 0).toLocaleString('id-ID')}`);
+        setTxt('r-fair-value-text', `Target: ${formatPrice(data.valuation?.average_fair_value || 0)}`);
 
         // Sensitivity Matrix Scenarios
         const sensContainer = document.getElementById('sensitivity-cards-container');
@@ -157,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 return `
                     <div class="p-2.5 rounded-xl border ${borderClass} transition cursor-pointer" onclick="simulatePrice(${sc.simulated_price})">
                         <div class="text-[10px] font-bold ${isBase ? 'text-brand-300' : 'text-slate-400'}">${label}</div>
-                        <div class="text-sm font-bold text-white mt-0.5">Rp ${Number(sc.simulated_price).toLocaleString('id-ID')}</div>
+                        <div class="text-sm font-bold text-white mt-0.5">${formatPrice(sc.simulated_price)}</div>
                         <div class="text-[11px] text-slate-300 mt-1">PER: <strong>${sc.per}x</strong></div>
                         <div class="text-[11px] text-purple-300">Div: <strong>${sc.dividend_yield}%</strong></div>
                         <div class="text-[11px] font-bold text-cyan-300 mt-0.5">Skor: ${sc.composite_score}</div>
@@ -173,9 +510,9 @@ document.addEventListener('DOMContentLoaded', () => {
         setTxt('r-pbv', `${data.valuation?.pbv || 0}x`);
         setTxt('r-ev-ebitda', `${data.valuation?.ev_ebitda || 0}x`);
         setTxt('r-peg', data.valuation?.peg_ratio ? `${data.valuation.peg_ratio}x` : 'N/A');
-        setTxt('r-graham', data.valuation?.graham_number ? `Rp ${Number(data.valuation.graham_number).toLocaleString('id-ID')}` : 'N/A');
-        setTxt('r-dcf', data.valuation?.dcf_fair_value ? `Rp ${Number(data.valuation.dcf_fair_value).toLocaleString('id-ID')}` : 'N/A');
-        setTxt('r-avg-fair', `Rp ${Number(data.valuation?.average_fair_value || 0).toLocaleString('id-ID')}`);
+        setTxt('r-graham', data.valuation?.graham_number ? formatPrice(data.valuation.graham_number) : 'N/A');
+        setTxt('r-dcf', data.valuation?.dcf_fair_value ? formatPrice(data.valuation.dcf_fair_value) : 'N/A');
+        setTxt('r-avg-fair', formatPrice(data.valuation?.average_fair_value || 0));
 
         // Pillar 2: Profitability
         setTxt('p-prof-score', `${data.radar?.profitability || 0}/100`);
@@ -199,7 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Pillar 4: Cash Flow & Dividend
         setTxt('p-cf-score', `${data.radar?.cash_flow_quality || 0}/100`);
-        setTxt('r-fcf', `Rp ${((data.cash_flow_dividend?.fcf || 0) / 1e12).toFixed(1)} T`);
+        setTxt('r-fcf', formatLargeCashFlow(data.cash_flow_dividend?.fcf || 0));
         setTxt('r-fcf-yield', `${data.cash_flow_dividend?.fcf_yield || 0}%`);
         setTxt('r-div-yield', `${data.cash_flow_dividend?.dividend_yield || 0}%`);
         setTxt('r-dpr', `${data.cash_flow_dividend?.dpr || 0}%`);
@@ -221,6 +558,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 setTxt('b-ldr', `${data.bank_metrics.ldr}%`);
             } else {
                 bankPanel.classList.add('hidden');
+            }
+        }
+
+        // Financial Performance (Revenue, Net Income, EPS) & 4-Year History
+        const revVal = data.revenue || data.growth?.revenue_current || 0;
+        const niVal = data.net_income || data.growth?.net_income_current || 0;
+        const epsVal = data.eps || data.growth?.eps_current || 0;
+        const revGrowth = data.growth?.revenue_growth_yoy || 0;
+        const niGrowth = data.growth?.net_income_growth_yoy || 0;
+        const epsGrowth = data.growth?.eps_growth_yoy || 0;
+        const cagrRev = data.growth?.revenue_cagr_3y;
+        const cagrEps = data.growth?.eps_cagr_3y;
+
+        setTxt('r-revenue-val', formatLargeCashFlow(revVal));
+        setTxt('r-revenue-growth-badge', `${revGrowth >= 0 ? '+' : ''}${revGrowth.toFixed(1)}% YoY`);
+        setTxt('r-net-income-val', formatLargeCashFlow(niVal));
+        setTxt('r-net-income-growth-badge', `${niGrowth >= 0 ? '+' : ''}${niGrowth.toFixed(1)}% YoY`);
+        setTxt('r-eps-val', formatPrice(epsVal));
+        setTxt('r-eps-growth-badge', `${epsGrowth >= 0 ? '+' : ''}${epsGrowth.toFixed(1)}% YoY`);
+
+        setTxt('r-cagr-rev', cagrRev !== null && cagrRev !== undefined ? `${cagrRev >= 0 ? '+' : ''}${cagrRev.toFixed(1)}%` : 'N/A');
+        setTxt('r-cagr-eps', cagrEps !== null && cagrEps !== undefined ? `${cagrEps >= 0 ? '+' : ''}${cagrEps.toFixed(1)}%` : 'N/A');
+
+        // Multi-Year History Table Rows
+        const historyTbody = document.getElementById('r-history-tbody');
+        if (historyTbody) {
+            const histList = data.growth?.revenue_history || [];
+            if (histList.length > 0) {
+                historyTbody.innerHTML = histList.map(item => {
+                    const npm = item.revenue > 0 ? (item.net_income / item.revenue * 100).toFixed(1) : '0.0';
+                    const isLatest = item.year === 2024;
+                    const badgeYear = isLatest ? `<span class="px-2 py-0.5 rounded bg-brand-500/20 text-brand-300 font-bold border border-brand-500/30">⭐ ${item.year} (Aktif)</span>` : item.year;
+                    return `
+                        <tr class="hover:bg-dark-surface/50 transition">
+                            <td class="p-3 font-bold">${badgeYear}</td>
+                            <td class="p-3 text-right font-mono text-cyan-400">${formatLargeCashFlow(item.revenue)}</td>
+                            <td class="p-3 text-right font-mono text-emerald-400">${formatLargeCashFlow(item.net_income)}</td>
+                            <td class="p-3 text-right font-mono font-bold text-amber-300">${formatPrice(item.eps)}</td>
+                            <td class="p-3 text-right font-mono text-slate-300">${npm}%</td>
+                        </tr>
+                    `;
+                }).join('');
+            } else {
+                historyTbody.innerHTML = `
+                    <tr>
+                        <td class="p-3 font-bold">2024</td>
+                        <td class="p-3 text-right font-mono text-cyan-400">${formatLargeCashFlow(revVal)}</td>
+                        <td class="p-3 text-right font-mono text-emerald-400">${formatLargeCashFlow(niVal)}</td>
+                        <td class="p-3 text-right font-mono font-bold text-amber-300">${formatPrice(epsVal)}</td>
+                        <td class="p-3 text-right font-mono text-slate-300">${(data.profitability?.npm || 0).toFixed(1)}%</td>
+                    </tr>
+                `;
             }
         }
 
@@ -275,9 +664,11 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    window.simulatePrice = function(targetPrice) {
-        if (simPriceInput) simPriceInput.value = targetPrice;
-        loadSingleEmiten(currentActiveTicker, targetPrice);
+    window.simulatePrice = function(targetPriceInIdr) {
+        if (simPriceInput) {
+            simPriceInput.value = currentCurrency === 'USD' ? (targetPriceInIdr * liveFxRate.idr_to_usd).toFixed(2) : targetPriceInIdr;
+        }
+        loadSingleEmiten(currentActiveTicker, targetPriceInIdr);
     };
 
     document.querySelectorAll('.quick-chip').forEach(chip => {
@@ -307,6 +698,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!resp.ok) return;
             const data = await resp.json();
+            cachedComparisonData = data;
             renderComparison(data);
         } catch (err) {
             console.error('Error running comparison:', err);
@@ -354,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <span class="px-2 py-0.5 rounded bg-brand-600/20 border border-brand-500/30 text-brand-300">${item.ticker}</span>
                             ${isWinner ? '👑' : ''}
                         </td>
-                        <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
+                        <td class="p-3.5 text-right font-mono">${formatPrice(item.current_price)}</td>
                         <td class="p-3.5 text-right font-mono">${item.per}x</td>
                         <td class="p-3.5 text-right font-mono">${item.pbv}x</td>
                         <td class="p-3.5 text-right font-mono text-brand-400">${item.roe}%</td>
@@ -386,8 +778,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     // 4. Screener Logic
     // -------------------------------------------------------------
-    let currentScreenerResults = [];
-
     async function runScreener(presetName, customCriteria = {}) {
         const payload = {
             preset: presetName || 'BUFFETT_MOAT',
@@ -402,6 +792,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (!resp.ok) return;
             const data = await resp.json();
+            cachedScreenerData = data;
             currentScreenerResults = data.results || [];
             renderScreener(data);
         } catch (err) {
@@ -414,14 +805,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const countBadge = document.getElementById('screener-count-badge');
         if (countBadge) {
-            countBadge.textContent = `Menampilkan ${data.total_matched} Emiten Terpilih (${data.applied_preset || 'CUSTOM'})`;
+            const presetLabel = data.applied_preset || 'CUSTOM';
+            countBadge.textContent = `Menampilkan ${data.total_matched} Emiten Terpilih (${presetLabel})`;
         }
 
         const tbody = document.getElementById('screener-tbody');
         if (tbody && data.results) {
+            if (data.results.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="15" class="p-8 text-center text-slate-400">
+                            <div class="text-2xl mb-2">🔍</div>
+                            <div class="font-bold text-sm text-slate-300">Tidak ada emiten yang cocok dengan kriteria filter harga/fundamental ini.</div>
+                            <div class="text-xs text-slate-500 mt-1">Coba perlebar rentang harga atau kurangi kriteria filter kustom.</div>
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+
             tbody.innerHTML = data.results.map((item, idx) => {
-                const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-brand-400 font-bold' : 'text-amber-400 font-bold';
-                const scoreClass = item.composite_score >= 75 ? 'text-brand-400 font-bold' : 'text-slate-200';
+                const gradeClass = ['A+', 'A'].includes(item.grade) ? 'text-brand-400 font-bold' : (item.grade === 'B' ? 'text-amber-400 font-bold' : 'text-rose-400 font-bold');
+                const scoreClass = item.composite_score >= 75 ? 'text-brand-400 font-bold' : (item.composite_score >= 60 ? 'text-amber-300 font-bold' : 'text-slate-300');
+                const upsideClass = item.upside_pct > 0 ? 'text-emerald-400 font-bold' : 'text-rose-400';
+                const upsideSign = item.upside_pct > 0 ? '+' : '';
+
+                let verdictBg = 'bg-dark-surface border-dark-border text-slate-300';
+                if (item.verdict === 'STRONG BUY') verdictBg = 'bg-emerald-900/60 border-emerald-500 text-emerald-300 font-bold';
+                else if (item.verdict === 'BUY') verdictBg = 'bg-emerald-950/40 border-emerald-700 text-emerald-400 font-semibold';
+                else if (item.verdict === 'HOLD') verdictBg = 'bg-amber-950/40 border-amber-700 text-amber-300';
+                else if (item.verdict === 'AVOID') verdictBg = 'bg-rose-950/40 border-rose-700 text-rose-300';
 
                 return `
                     <tr class="hover:bg-dark-surface/40 transition">
@@ -429,9 +842,10 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td class="p-3.5 font-bold text-brand-300 font-mono">
                             <button class="hover:underline" onclick="switchSingle('${item.ticker}')">${item.ticker}</button>
                         </td>
-                        <td class="p-3.5 text-slate-300 truncate max-w-[200px]">${item.name}</td>
+                        <td class="p-3.5 text-slate-300 truncate max-w-[180px]">${item.name}</td>
                         <td class="p-3.5 text-slate-400">${item.sector}</td>
-                        <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
+                        <td class="p-3.5 text-right font-mono font-bold text-white">${formatPrice(item.current_price)}</td>
+                        <td class="p-3.5 text-right font-mono ${upsideClass}">${upsideSign}${item.upside_pct.toFixed(1)}%</td>
                         <td class="p-3.5 text-right font-mono">${item.per}x</td>
                         <td class="p-3.5 text-right font-mono">${item.pbv}x</td>
                         <td class="p-3.5 text-right font-mono text-brand-400">${item.roe}%</td>
@@ -440,7 +854,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td class="p-3.5 text-right font-mono text-purple-400">${item.dividend_yield}%</td>
                         <td class="p-3.5 text-center font-mono ${scoreClass}">${item.composite_score}</td>
                         <td class="p-3.5 text-center ${gradeClass}">${item.grade}</td>
-                        <td class="p-3.5 text-center"><span class="px-2 py-0.5 text-[10px] rounded bg-dark-surface border border-dark-border text-slate-300">${item.verdict}</span></td>
+                        <td class="p-3.5 text-center"><span class="px-2 py-0.5 text-[10px] rounded border ${verdictBg}">${item.verdict}</span></td>
                     </tr>
                 `;
             }).join('');
@@ -450,9 +864,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     // 5. Market Summary & Daily Top Picks Logic
     // -------------------------------------------------------------
-    let allMarketEmitens = [];
-    let currentMarketData = null;
-
     async function loadMarketSummary(retryCount = 0) {
         const topPicksContainer = document.getElementById('top-picks-container');
         const tbody = document.getElementById('market-tbody');
@@ -591,11 +1002,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             <div class="p-3 bg-dark-bg/90 border border-dark-border rounded-xl font-mono text-xs space-y-1.5">
                                 <div class="flex items-center justify-between text-slate-400">
                                     <span>Harga Pasar:</span>
-                                    <span class="text-slate-100 font-bold">Rp ${Number(pick.current_price).toLocaleString('id-ID')}</span>
+                                    <span class="text-slate-100 font-bold">${formatPrice(pick.current_price)}</span>
                                 </div>
                                 <div class="flex items-center justify-between text-slate-400">
                                     <span>Nilai Wajar:</span>
-                                    <span class="${c.textAcc} font-bold">Rp ${Number(pick.fair_value).toLocaleString('id-ID')}</span>
+                                    <span class="${c.textAcc} font-bold">${formatPrice(pick.fair_value)}</span>
                                 </div>
                                 <div class="flex items-center justify-between border-t border-dark-border pt-1">
                                     <span class="text-slate-300 font-sans font-medium text-[11px]">Potensi Upside:</span>
@@ -631,7 +1042,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Populate Sector Filter Options
         const sectorSelect = document.getElementById('market-sector-filter');
-        if (sectorSelect) {
+        if (sectorSelect && sectorSelect.options.length <= 1) {
             const sectors = Array.from(new Set(allMarketEmitens.map(e => e.sector))).filter(Boolean).sort();
             sectorSelect.innerHTML = '<option value="ALL">Semua Sektor</option>' + 
                 sectors.map(s => `<option value="${s}">${s}</option>`).join('');
@@ -694,7 +1105,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         </div>
                     </td>
                     <td class="p-3.5 text-slate-400">${item.sector}</td>
-                    <td class="p-3.5 text-right font-mono">Rp ${Number(item.current_price).toLocaleString('id-ID')}</td>
+                    <td class="p-3.5 text-right font-mono">${formatPrice(item.current_price)}</td>
                     <td class="p-3.5 text-right font-mono">${item.per}x</td>
                     <td class="p-3.5 text-right font-mono">${item.pbv}x</td>
                     <td class="p-3.5 text-right font-mono text-brand-400">${item.roe}%</td>
@@ -742,6 +1153,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const refreshMarketBtn = document.getElementById('refresh-market-btn');
     if (refreshMarketBtn) refreshMarketBtn.addEventListener('click', () => loadMarketSummary(0));
 
+    // -------------------------------------------------------------
+    // Screener Preset & Quick Price Buttons
+    // -------------------------------------------------------------
+    let currentScreenerPreset = 'BUFFETT_MOAT';
+
+    function getCustomCriteriaPayload() {
+        return {
+            min_price: parseFloat(document.getElementById('f-min-price')?.value) || null,
+            max_price: parseFloat(document.getElementById('f-max-price')?.value) || null,
+            min_roe: parseFloat(document.getElementById('f-min-roe')?.value) || null,
+            max_der: parseFloat(document.getElementById('f-max-der')?.value) || null,
+            min_piotroski_f: parseInt(document.getElementById('f-min-pio')?.value) || null,
+            min_dividend_yield: parseFloat(document.getElementById('f-min-div')?.value) || null,
+            max_pe: parseFloat(document.getElementById('f-max-pe')?.value) || null,
+            min_composite_score: parseFloat(document.getElementById('f-min-score')?.value) || null,
+            only_buy_recommendations: document.getElementById('f-buy-only')?.checked || false,
+            only_undervalued: document.getElementById('f-undervalued-only')?.checked || false,
+            sort_by: document.getElementById('f-sort-by')?.value || 'composite_score'
+        };
+    }
+
     document.querySelectorAll('.screener-preset-card').forEach(card => {
         card.addEventListener('click', () => {
             document.querySelectorAll('.screener-preset-card').forEach(c => {
@@ -751,21 +1183,97 @@ document.addEventListener('DOMContentLoaded', () => {
             card.classList.add('bg-brand-600/10', 'border-brand-500', 'text-white', 'shadow-lg');
             card.classList.remove('bg-dark-card', 'border-dark-border', 'text-slate-300');
 
-            runScreener(card.dataset.preset);
+            currentScreenerPreset = card.dataset.preset;
+            const sortVal = document.getElementById('f-sort-by')?.value || 'composite_score';
+            runScreener(currentScreenerPreset, { sort_by: sortVal });
+        });
+    });
+
+    // Quick Price Filter Buttons
+    document.querySelectorAll('.quick-price-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.quick-price-btn').forEach(b => {
+                b.classList.remove('active', 'bg-brand-600', 'text-white', 'border-brand-500', 'shadow-sm');
+                b.classList.add('bg-dark-surface', 'text-slate-300', 'border-dark-border');
+            });
+            btn.classList.add('active', 'bg-brand-600', 'text-white', 'border-brand-500', 'shadow-sm');
+            btn.classList.remove('bg-dark-surface', 'text-slate-300', 'border-dark-border');
+
+            const priceType = btn.dataset.price;
+            const criteria = {
+                sort_by: document.getElementById('f-sort-by')?.value || 'composite_score'
+            };
+
+            const minPriceInput = document.getElementById('f-min-price');
+            const maxPriceInput = document.getElementById('f-max-price');
+            const buyOnlyCheck = document.getElementById('f-buy-only');
+
+            if (priceType === 'budget') {
+                criteria.max_price = 1000.0;
+                if (minPriceInput) minPriceInput.value = '';
+                if (maxPriceInput) maxPriceInput.value = '1000';
+            } else if (priceType === 'mid') {
+                criteria.min_price = 1000.0;
+                criteria.max_price = 5000.0;
+                if (minPriceInput) minPriceInput.value = '1000';
+                if (maxPriceInput) maxPriceInput.value = '5000';
+            } else if (priceType === 'premium') {
+                criteria.min_price = 5000.0;
+                if (minPriceInput) minPriceInput.value = '5000';
+                if (maxPriceInput) maxPriceInput.value = '';
+            } else if (priceType === 'buy_only') {
+                criteria.only_buy_recommendations = true;
+                if (buyOnlyCheck) buyOnlyCheck.checked = true;
+            } else {
+                // all
+                if (minPriceInput) minPriceInput.value = '';
+                if (maxPriceInput) maxPriceInput.value = '';
+            }
+
+            runScreener('CUSTOM', criteria);
         });
     });
 
     const screenerFilterBtn = document.getElementById('screener-filter-btn');
     if (screenerFilterBtn) {
         screenerFilterBtn.addEventListener('click', () => {
-            const custom = {
-                min_roe: parseFloat(document.getElementById('f-min-roe')?.value) || null,
-                max_der: parseFloat(document.getElementById('f-max-der')?.value) || null,
-                min_piotroski_f: parseInt(document.getElementById('f-min-pio')?.value) || null,
-                min_dividend_yield: parseFloat(document.getElementById('f-min-div')?.value) || null,
-                max_pe: parseFloat(document.getElementById('f-max-pe')?.value) || null,
-                min_composite_score: parseFloat(document.getElementById('f-min-score')?.value) || null
-            };
+            const custom = getCustomCriteriaPayload();
+            runScreener('CUSTOM', custom);
+        });
+    }
+
+    const screenerResetBtn = document.getElementById('screener-reset-btn');
+    if (screenerResetBtn) {
+        screenerResetBtn.addEventListener('click', () => {
+            ['f-min-price', 'f-max-price', 'f-min-roe', 'f-max-der', 'f-min-pio', 'f-min-div', 'f-max-pe', 'f-min-score'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            const buyOnly = document.getElementById('f-buy-only');
+            if (buyOnly) buyOnly.checked = false;
+            const underOnly = document.getElementById('f-undervalued-only');
+            if (underOnly) underOnly.checked = false;
+            const sortBy = document.getElementById('f-sort-by');
+            if (sortBy) sortBy.value = 'composite_score';
+
+            document.querySelectorAll('.quick-price-btn').forEach(b => {
+                if (b.dataset.price === 'all') {
+                    b.classList.add('active', 'bg-brand-600', 'text-white', 'border-brand-500');
+                    b.classList.remove('bg-dark-surface', 'text-slate-300');
+                } else {
+                    b.classList.remove('active', 'bg-brand-600', 'text-white', 'border-brand-500');
+                    b.classList.add('bg-dark-surface', 'text-slate-300');
+                }
+            });
+
+            runScreener('BUFFETT_MOAT');
+        });
+    }
+
+    const screenerSortSelect = document.getElementById('f-sort-by');
+    if (screenerSortSelect) {
+        screenerSortSelect.addEventListener('change', () => {
+            const custom = getCustomCriteriaPayload();
             runScreener('CUSTOM', custom);
         });
     }
@@ -775,16 +1283,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (screenerCsvBtn) {
         screenerCsvBtn.addEventListener('click', () => {
             if (!currentScreenerResults.length) return;
-            const headers = ["Ticker", "Company Name", "Sector", "Price", "PER", "PBV", "ROE", "DER", "Piotroski", "Altman Z", "Div Yield", "Composite Score", "Grade", "Verdict"];
-            const rows = currentScreenerResults.map(it => [
-                it.ticker, `"${it.name}"`, `"${it.sector}"`, it.current_price, it.per, it.pbv, it.roe, it.der, it.piotroski_f_score, it.altman_z_score, it.dividend_yield, it.composite_score, it.grade, it.verdict
-            ]);
+            const headers = ["Ticker", "Company Name", "Sector", `Price (${currentCurrency})`, "Upside (%)", "PER", "PBV", "ROE", "DER", "Piotroski", "Altman Z", "Div Yield", "Composite Score", "Grade", "Verdict"];
+            const rows = currentScreenerResults.map(it => {
+                const priceFormatted = currentCurrency === 'USD' ? (it.current_price * liveFxRate.idr_to_usd).toFixed(2) : it.current_price;
+                return [
+                    it.ticker, `"${it.name}"`, `"${it.sector}"`, priceFormatted, `${it.upside_pct.toFixed(1)}%`, it.per, it.pbv, it.roe, it.der, it.piotroski_f_score, it.altman_z_score, it.dividend_yield, it.composite_score, it.grade, it.verdict
+                ];
+            });
 
             const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map(e => e.join(","))].join("\n");
             const encodedUri = encodeURI(csvContent);
             const link = document.createElement("a");
             link.setAttribute("href", encodedUri);
-            link.setAttribute("download", `idx_screener_${new Date().toISOString().slice(0,10)}.csv`);
+            link.setAttribute("download", `idx_screener_${currentCurrency.toLowerCase()}_${new Date().toISOString().slice(0,10)}.csv`);
             document.body.appendChild(link);
             link.click();
             document.body.removeChild(link);
@@ -792,8 +1303,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // -------------------------------------------------------------
-    // Initial load: Load Market Overview by default & prepare BBRI
+    // Initial load: Fetch Live FX Rates, Load Market Overview & BBRI
     // -------------------------------------------------------------
+    setGlobalCurrency(currentCurrency);
+    fetchLiveCurrencyRate();
     loadMarketSummary();
     loadSingleEmiten('BBRI', null, false, true);
 });

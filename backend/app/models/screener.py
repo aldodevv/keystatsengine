@@ -14,6 +14,8 @@ class ScreenerPreset(str, Enum):
     GARP = "GARP"                          # Growth at Reasonable Price (Low PEG, High Growth)
     DEEP_VALUE = "DEEP_VALUE"              # Low PBV/PER, Safe Altman Z
     MOMENTUM_QUALITY = "MOMENTUM_QUALITY"  # High Margin Expansion + Strong EPS Growth
+    AFFORDABLE_GEMS = "AFFORDABLE_GEMS"    # Affordable price (<= Rp 2,500), high score, healthy ROE
+    UNDERVALUED_DEALS = "UNDERVALUED_DEALS" # Undervalued BUY/STRONG BUY with positive upside
 
 
 class ScreenerCriteria(BaseModel):
@@ -21,6 +23,10 @@ class ScreenerCriteria(BaseModel):
     sectors: Optional[List[str]] = None
     min_market_cap: Optional[float] = None
     max_market_cap: Optional[float] = None
+    
+    # Stock Price Filters (Harga Saham IDR)
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
     
     # Valuation Filters
     min_pe: Optional[float] = None
@@ -50,8 +56,14 @@ class ScreenerCriteria(BaseModel):
     min_revenue_growth: Optional[float] = None
     min_eps_growth: Optional[float] = None
     
-    # Score
+    # Score & Recommendation Filters
     min_composite_score: Optional[float] = None
+    verdicts: Optional[List[str]] = None
+    only_undervalued: bool = False
+    only_buy_recommendations: bool = False
+    
+    # Sorting: composite_score, price_asc, price_desc, upside_pct, dividend_yield, roe
+    sort_by: Optional[str] = "composite_score"
 
 
 class EmitenSummaryItem(BaseModel):
@@ -60,6 +72,10 @@ class EmitenSummaryItem(BaseModel):
     sector: str
     current_price: float
     market_cap: float
+    eps: float = 0.0
+    revenue: float = 0.0
+    revenue_growth: float = 0.0
+    eps_growth: float = 0.0
     per: float
     pbv: float
     roe: float
@@ -77,6 +93,41 @@ class ScreenerResponse(BaseModel):
     total_matched: int
     results: List[EmitenSummaryItem]
     applied_preset: Optional[str] = None
+
+
+class PriceRecommendationItem(BaseModel):
+    ticker: str
+    name: str
+    sector: str
+    current_price: float
+    eps: float = 0.0
+    revenue: float = 0.0
+    eps_growth: float = 0.0
+    composite_score: float
+    grade: str
+    verdict: str
+    upside_pct: float
+    per: float
+    pbv: float
+    roe: float
+    dividend_yield: float
+    recommendation_reason: str
+
+
+class PriceTierGroup(BaseModel):
+    tier_id: str
+    tier_name: str
+    price_range_desc: str
+    min_price: Optional[float] = None
+    max_price: Optional[float] = None
+    count: int
+    items: List[PriceRecommendationItem]
+
+
+class PriceTierRecommendationResponse(BaseModel):
+    total_recommendations: int
+    tiers: List[PriceTierGroup]
+    generated_at: Optional[str] = None
 
 
 class ComparisonResponse(BaseModel):

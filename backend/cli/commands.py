@@ -58,14 +58,18 @@ def compare(
 
 @app.command(name="screen")
 def screen(
-    preset: Optional[str] = typer.Option(None, help="Preset: BUFFETT_MOAT, DIVIDEND_CASH_COW, GARP, DEEP_VALUE, MOMENTUM_QUALITY"),
+    preset: Optional[str] = typer.Option(None, help="Preset: BUFFETT_MOAT, DIVIDEND_CASH_COW, GARP, DEEP_VALUE, MOMENTUM_QUALITY, AFFORDABLE_GEMS, UNDERVALUED_DEALS"),
+    min_price: Optional[float] = typer.Option(None, "--min-price", help="Minimum stock price in IDR"),
+    max_price: Optional[float] = typer.Option(None, "--max-price", help="Maximum stock price in IDR"),
     min_roe: Optional[float] = typer.Option(None, help="Minimum ROE %"),
     max_der: Optional[float] = typer.Option(None, help="Maximum DER ratio"),
     min_piotroski: Optional[int] = typer.Option(None, help="Minimum Piotroski F-Score (0-9)"),
     min_div_yield: Optional[float] = typer.Option(None, help="Minimum Dividend Yield %"),
-    min_score: Optional[float] = typer.Option(None, help="Minimum Composite Score (0-100)")
+    min_score: Optional[float] = typer.Option(None, help="Minimum Composite Score (0-100)"),
+    buy_only: bool = typer.Option(False, "--buy-only", help="Filter only BUY and STRONG BUY recommendations"),
+    sort_by: str = typer.Option("composite_score", "--sort-by", help="Sort by: composite_score, price_asc, price_desc, upside_pct, dividend_yield, roe")
 ):
-    """Run quantitative fundamental screening with filters or presets."""
+    """Run quantitative fundamental screening with customizable filters, price ranges, or presets."""
     preset_enum = None
     if preset:
         try:
@@ -76,17 +80,84 @@ def screen(
             
     criteria = ScreenerCriteria(
         preset=preset_enum,
+        min_price=min_price,
+        max_price=max_price,
         min_roe=min_roe,
         max_der=max_der,
         min_piotroski_f=min_piotroski,
         min_dividend_yield=min_div_yield,
-        min_composite_score=min_score
+        min_composite_score=min_score,
+        only_buy_recommendations=buy_only,
+        sort_by=sort_by
     )
     
     with console.status("[bold cyan]Running Multi-Factor Screener..."):
         resp = screener_service.run_screener(criteria)
         
     TerminalRenderer.render_screener(resp)
+
+
+@app.command(name="recommend")
+def recommend(
+    budget: Optional[float] = typer.Option(None, "--budget", "-b", help="Max price budget per share in IDR (e.g. 5000)"),
+    min_price: Optional[float] = typer.Option(None, "--min-price", help="Minimum stock price in IDR"),
+    max_price: Optional[float] = typer.Option(None, "--max-price", help="Maximum stock price in IDR"),
+    tier: Optional[str] = typer.Option(None, "--tier", "-t", help="Price tier: budget (<1k), mid (1k-5k), premium (>5k), or all"),
+    min_score: float = typer.Option(60.0, "--min-score", "-s", help="Minimum fundamental composite score (0-100)"),
+    buy_only: bool = typer.Option(True, "--buy-only/--all", help="Only show BUY and STRONG BUY recommendations"),
+    sector: Optional[str] = typer.Option(None, "--sector", help="Filter by sector (e.g. Financials, Energy)"),
+    sort_by: str = typer.Option("composite_score", "--sort-by", help="Sort by: composite_score, price_asc, price_desc, upside_pct, dividend_yield, roe"),
+    limit: int = typer.Option(10, "--limit", "-l", help="Max recommendations to display")
+):
+    """Find & recommend top quality stocks filtered by price budget or price tier."""
+    if tier and tier.lower() == "all":
+        with console.status("[bold cyan]Generating Price-Tier Stock Recommendations..."):
+            tier_resp = screener_service.get_price_tier_recommendations()
+        TerminalRenderer.render_price_tiers(tier_resp)
+        return
+
+    # Handle tier aliases
+    effective_min_price = min_price
+    effective_max_price = max_price or budget
+
+    if tier:
+        t = tier.lower()
+        if t in ["budget", "cheap", "low", "1"]:
+            effective_min_price = None
+            effective_max_price = 1000.0
+        elif t in ["mid", "mid-range", "medium", "2"]:
+            effective_min_price = 1000.0
+            effective_max_price = 5000.0
+        elif t in ["premium", "bluechip", "high", "3"]:
+            effective_min_price = 5000.0
+            effective_max_price = None
+
+    price_desc = "Semua Rentang Harga"
+    if effective_min_price and effective_max_price:
+        price_desc = f"Rp{effective_min_price:,.0f} - Rp{effective_max_price:,.0f}"
+    elif effective_max_price:
+        price_desc = f"<= Rp{effective_max_price:,.0f}"
+    elif effective_min_price:
+        price_desc = f">= Rp{effective_min_price:,.0f}"
+
+    title = f"🎯 REKOMENDASI SAHAM PILIHAN (Harga: {price_desc})"
+    with console.status(f"[bold cyan]Finding Top Stock Recommendations ({price_desc})..."):
+        items = screener_service.get_recommendations_by_price(
+            min_price=effective_min_price,
+            max_price=effective_max_price,
+            min_score=min_score,
+            only_buy=buy_only,
+            sector=sector,
+            sort_by=sort_by,
+            limit=limit
+        )
+
+    if not items:
+        console.print(f"[bold yellow]⚠️ Tidak ada rekomendasi saham yang cocok dengan harga {price_desc} dan skor >= {min_score}.[/bold yellow]")
+        console.print("[dim]Tip: Coba turunkan --min-score atau gunakan --all untuk melihat semua saham.[/dim]")
+        return
+
+    TerminalRenderer.render_price_recommendations(items, title=title)
 
 
 @app.command(name="summary")
@@ -110,5 +181,36 @@ def list_emitens():
         console.print(f"  • [bold cyan]{t}[/bold cyan]")
 
 
+@app.command(name="fx")
+def fx_rate(
+    refresh: bool = typer.Option(False, "--refresh", "-r", help="Force refresh rate from live source")
+):
+    """View real-time USD/IDR exchange rate & currency stats."""
+    from app.services.currency_service import CurrencyService
+    curr_service = CurrencyService()
+    
+    with console.status("[bold cyan]Fetching Live USD/IDR Foreign Exchange Rate..."):
+        rate_resp = curr_service.get_live_rate(force_refresh=refresh)
+        
+    TerminalRenderer.render_currency_rates(rate_resp)
+
+
+@app.command(name="convert")
+def convert_currency(
+    amount: float = typer.Argument(..., help="Nominal amount to convert (e.g. 10000000 or 500)"),
+    from_curr: str = typer.Option("IDR", "--from", "-f", help="Source currency (IDR or USD)"),
+    to_curr: str = typer.Option("USD", "--to", "-t", help="Target currency (USD or IDR)")
+):
+    """Convert amount between IDR and USD using live exchange rates."""
+    from app.services.currency_service import CurrencyService
+    curr_service = CurrencyService()
+    
+    with console.status(f"[bold cyan]Converting {amount:,.2f} {from_curr.upper()} ➔ {to_curr.upper()}..."):
+        conv_resp = curr_service.convert(amount=amount, from_currency=from_curr, to_currency=to_curr)
+        
+    TerminalRenderer.render_currency_conversion(conv_resp)
+
+
 if __name__ == "__main__":
     app()
+

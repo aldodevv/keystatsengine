@@ -8,6 +8,7 @@ from app.api.v1.emiten import router as emiten_router
 from app.api.v1.compare import router as compare_router
 from app.api.v1.screener import router as screener_router
 from app.api.v1.market import router as market_router
+from app.api.v1.currency import router as currency_router
 
 import os
 from fastapi.staticfiles import StaticFiles
@@ -30,6 +31,7 @@ app.add_middleware(
 
 # Register API v1 routers
 app.include_router(market_router, prefix="/api/v1")
+app.include_router(currency_router, prefix="/api/v1")
 app.include_router(emiten_router, prefix="/api/v1")
 app.include_router(compare_router, prefix="/api/v1")
 app.include_router(screener_router, prefix="/api/v1")

@@ -27,6 +27,9 @@ class ValuationEngine:
         # 2. PBV
         pbv = (price / bvps) if bvps > 0 else 0.0
         
+        # 2b. Price to Sales (P/S)
+        ps_ratio = (market_cap / curr.revenue) if curr.revenue > 0 else 0.0
+        
         # 3. Enterprise Value & EV/EBITDA
         total_debt = curr.total_debt if curr.total_debt > 0 else (curr.short_term_debt + curr.long_term_debt)
         cash = curr.cash_and_equivalents
@@ -79,6 +82,7 @@ class ValuationEngine:
         return ValuationResult(
             per=round(per, 2),
             pbv=round(pbv, 2),
+            ps_ratio=round(ps_ratio, 2),
             ev_ebitda=round(ev_ebitda, 2),
             peg_ratio=peg_ratio,
             graham_number=graham_number,

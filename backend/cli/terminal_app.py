@@ -54,6 +54,7 @@ class TerminalRenderer:
         val_table.add_column("Value", justify="right")
         val_table.add_row("P/E Ratio (PER)", f"{report.valuation.per}x")
         val_table.add_row("P/B Ratio (PBV)", f"{report.valuation.pbv}x")
+        val_table.add_row("P/S Ratio", f"{report.valuation.ps_ratio}x")
         val_table.add_row("EV / EBITDA", f"{report.valuation.ev_ebitda}x")
         if report.valuation.peg_ratio:
             val_table.add_row("PEG Ratio", f"{report.valuation.peg_ratio}x")
@@ -109,6 +110,40 @@ class TerminalRenderer:
         cf_table.add_row("EPS Growth YoY", f"{report.growth.eps_growth_yoy:+0.1f}%")
 
         console.print(Columns([val_table, prof_table, health_table, cf_table], equal=True))
+
+        # Dedicated Financial Performance (EPS & Revenue) Table with Multi-Year Trend
+        growth_summary_table = Table(title="[bold cyan]📊 PERFORMA FINANSIAL, EPS & REVENUE MULTI-YEAR (2021 - 2024)[/bold cyan]", box=box.ROUNDED)
+        growth_summary_table.add_column("Tahun Buku", justify="center", style="bold")
+        growth_summary_table.add_column("Pendapatan (Revenue)", justify="right")
+        growth_summary_table.add_column("Laba Bersih (Net Income)", justify="right")
+        growth_summary_table.add_column("EPS (Rp/lembar)", justify="right", style="bold yellow")
+        growth_summary_table.add_column("Net Profit Margin", justify="right")
+        
+        if report.growth.revenue_history:
+            for row in report.growth.revenue_history:
+                rev_val = row.get("revenue", 0)
+                ni_val = row.get("net_income", 0)
+                eps_val = row.get("eps", 0)
+                npm_val = (ni_val / rev_val * 100) if rev_val > 0 else 0.0
+                year_label = f"⭐ {row.get('year')} (Aktif)" if row.get('year') == 2024 else str(row.get('year'))
+                growth_summary_table.add_row(
+                    year_label,
+                    f"Rp{rev_val / 1e12:,.2f} T",
+                    f"Rp{ni_val / 1e12:,.2f} T",
+                    f"Rp{eps_val:,.2f}",
+                    f"{npm_val:.1f}%"
+                )
+        else:
+            growth_summary_table.add_row("2024", f"Rp{report.revenue / 1e12:,.2f} T", f"Rp{report.net_income / 1e12:,.2f} T", f"Rp{report.eps:,.2f}", f"{report.profitability.npm:.1f}%")
+            
+        cagr_rev_str = f"+{report.growth.revenue_cagr_3y:.1f}%" if report.growth.revenue_cagr_3y is not None else "N/A"
+        cagr_eps_str = f"+{report.growth.eps_cagr_3y:.1f}%" if report.growth.eps_cagr_3y is not None else "N/A"
+        
+        growth_meta_text = Text()
+        growth_meta_text.append(f"  • Revenue YoY Growth: {report.growth.revenue_growth_yoy:+.1f}%  |  Revenue 3-Year CAGR: {cagr_rev_str}\n", style="cyan")
+        growth_meta_text.append(f"  • Net Income YoY Growth: {report.growth.net_income_growth_yoy:+.1f}%  |  EPS YoY Growth: {report.growth.eps_growth_yoy:+.1f}%  |  EPS 3-Year CAGR: {cagr_eps_str}\n", style="yellow")
+        
+        console.print(Panel(growth_summary_table, border_style="cyan", subtitle=growth_meta_text, subtitle_align="left"))
 
         # Banking metrics if available
         if report.bank_metrics:
@@ -265,8 +300,8 @@ class TerminalRenderer:
         table.add_column("#", justify="center")
         table.add_column("Ticker", style="bold white on blue", justify="center")
         table.add_column("Company Name", style="dim")
-        table.add_column("Sector")
         table.add_column("Price (IDR)", justify="right")
+        table.add_column("EPS (Rp)", justify="right", style="bold yellow")
         table.add_column("PER", justify="right")
         table.add_column("PBV", justify="right")
         table.add_column("ROE", justify="right")
@@ -285,9 +320,9 @@ class TerminalRenderer:
             table.add_row(
                 str(idx),
                 item.ticker,
-                item.name[:25],
-                item.sector[:18],
+                item.name[:22],
                 f"Rp{item.current_price:,.0f}",
+                f"Rp{item.eps:,.1f}",
                 f"{item.per}x",
                 f"{item.pbv}x",
                 f"{item.roe}%",
@@ -301,6 +336,62 @@ class TerminalRenderer:
             )
             
         console.print(table)
+
+    @staticmethod
+    def render_price_recommendations(items: list, title: str = "🎯 REKOMENDASI SAHAM BERDASARKAN HARGA"):
+        table = Table(title=f"[bold cyan]{title}[/bold cyan]", box=box.ROUNDED)
+        table.add_column("#", justify="center")
+        table.add_column("Ticker", style="bold white on blue", justify="center")
+        table.add_column("Company Name", style="dim")
+        table.add_column("Price (IDR)", justify="right")
+        table.add_column("EPS (Rp)", justify="right", style="bold yellow")
+        table.add_column("Upside", justify="right")
+        table.add_column("PER", justify="right")
+        table.add_column("PBV", justify="right")
+        table.add_column("ROE", justify="right")
+        table.add_column("Yield", justify="right")
+        table.add_column("Score", justify="center")
+        table.add_column("Grade", justify="center")
+        table.add_column("Verdict", justify="center")
+        table.add_column("Alasan Rekomendasi", style="italic")
+        
+        for idx, it in enumerate(items, start=1):
+            grade_style = "bold green" if it.grade in ["A+", "A"] else ("bold yellow" if it.grade == "B" else "bold red")
+            score_style = "bold green" if it.composite_score >= 75 else ("bold yellow" if it.composite_score >= 60 else "bold red")
+            upside_style = "bold green" if it.upside_pct > 0 else "bold red"
+            
+            table.add_row(
+                str(idx),
+                it.ticker,
+                it.name[:20],
+                f"Rp{it.current_price:,.0f}",
+                f"Rp{it.eps:,.1f}",
+                f"[{upside_style}]{it.upside_pct:+.1f}%[/{upside_style}]",
+                f"{it.per}x",
+                f"{it.pbv}x",
+                f"{it.roe}%",
+                f"{it.dividend_yield}%",
+                f"[{score_style}]{it.composite_score}[/{score_style}]",
+                f"[{grade_style}]{it.grade}[/{grade_style}]",
+                it.verdict,
+                it.recommendation_reason
+            )
+            
+        console.print(table)
+
+    @staticmethod
+    def render_price_tiers(resp):
+        header_text = Text()
+        header_text.append("🎯 REKOMENDASI SAHAM IDX BERDASARKAN KATEGORI HARGA (PRICE TIERS)\n", style="bold yellow")
+        header_text.append(f"Total Saham Direkomendasikan: {resp.total_recommendations} Emiten\n", style="dim")
+        console.print(Panel(header_text, border_style="yellow", box=box.ROUNDED))
+        
+        for tier in resp.tiers:
+            console.print(f"\n[bold green]{tier.tier_name}[/bold green] - [dim]{tier.price_range_desc}[/dim] (Found: {tier.count} Saham)")
+            if tier.items:
+                TerminalRenderer.render_price_recommendations(tier.items, title=tier.tier_name)
+            else:
+                console.print("  [dim]Tidak ada emiten yang memenuhi kriteria di tier ini.[/dim]")
 
     @staticmethod
     def render_market_summary(resp):
@@ -367,4 +458,55 @@ class TerminalRenderer:
                 item.grade
             )
         console.print(table)
+
+    @staticmethod
+    def render_currency_rates(resp):
+        """Render Live USD/IDR Exchange Rates Table & Analytics"""
+        from rich.table import Table
+        from rich.panel import Panel
+        from rich.text import Text
+
+        table = Table(title="[bold green]💵 Live Kurs Valuta Asing (USD / IDR)[/bold green]", box=box.ROUNDED)
+        table.add_column("Mata Uang", style="bold cyan")
+        table.add_column("Nilai Tukar", justify="right", style="bold white")
+        table.add_column("24h Change", justify="right")
+        table.add_column("Sumber Data", style="dim")
+        table.add_column("Waktu Update", style="dim")
+
+        change_str = "-"
+        if resp.change_24h is not None:
+            change_color = "green" if resp.change_24h >= 0 else "red"
+            change_str = f"[{change_color}]{resp.change_24h:+.2f} ({resp.change_pct_24h:+.2f}%)[/{change_color}]"
+
+        table.add_row(
+            "1 USD ➔ IDR",
+            f"Rp {resp.usd_to_idr:,.2f}",
+            change_str,
+            resp.source,
+            resp.last_updated_formatted
+        )
+        table.add_row(
+            "1 IDR ➔ USD",
+            f"${resp.idr_to_usd:.8f}",
+            "-",
+            resp.source,
+            resp.last_updated_formatted
+        )
+
+        console.print(table)
+
+    @staticmethod
+    def render_currency_conversion(conv):
+        """Render currency conversion result panel"""
+        from rich.panel import Panel
+        from rich.text import Text
+
+        content = Text()
+        content.append(f"Input: {conv.formatted_original} ({conv.from_currency})\n", style="bold yellow")
+        content.append(f"Hasil Konversi: {conv.formatted_converted} ({conv.to_currency})\n", style="bold green")
+        content.append(f"Kurs Digunakan: 1 {conv.from_currency} = {conv.rate_used:,.6f} {conv.to_currency}\n", style="dim")
+        content.append(f"Waktu Update Kurs: {conv.last_updated}", style="dim italic")
+
+        console.print(Panel(content, title="[bold cyan]💱 Hasil Konversi Mata Uang[/bold cyan]", border_style="cyan", box=box.ROUNDED))
+
 

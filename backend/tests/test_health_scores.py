@@ -80,3 +80,62 @@ def test_dupont_roe_identity():
     # Identity test: Net Margin * Asset Turn * Eq Mult * 100 == ROE
     calculated_roe = prof.dupont_net_margin * prof.dupont_asset_turnover * prof.dupont_equity_multiplier * 100
     assert pytest.approx(calculated_roe, rel=1e-3) == prof.roe
+
+
+def test_growth_and_cagr_calculation():
+    p2021 = FinancialPeriod(year=2021, revenue=100.0, net_income=10.0, eps=10.0)
+    p2022 = FinancialPeriod(year=2022, revenue=110.0, net_income=12.0, eps=12.0)
+    p2023 = FinancialPeriod(year=2023, revenue=125.0, net_income=15.0, eps=15.0)
+    p2024 = FinancialPeriod(year=2024, revenue=150.0, net_income=20.0, eps=20.0)
+    
+    raw = RawKeyStats(
+        ticker="GROWTH",
+        name="Growth Co Tbk",
+        current_price=200.0,
+        shares_outstanding=1.0,
+        market_cap=200.0,
+        current_period=p2024,
+        previous_period=p2023,
+        historical_periods=[p2023, p2022, p2021]
+    )
+    
+    growth = FinancialHealthEngine.calculate_growth(raw)
+    assert growth.revenue_growth_yoy == pytest.approx(20.0, rel=1e-2)  # (150-125)/125 = 20%
+    assert growth.net_income_growth_yoy == pytest.approx(33.33, rel=1e-2)  # (20-15)/15 = 33.33%
+    assert growth.eps_growth_yoy == pytest.approx(33.33, rel=1e-2)
+    assert growth.eps_current == 20.0
+    assert growth.revenue_current == 150.0
+    
+    # 3Y CAGR: (150/100)^(1/3) - 1 = 14.47%
+    assert growth.revenue_cagr_3y == pytest.approx(14.47, rel=1e-2)
+    # EPS CAGR: (20/10)^(1/3) - 1 = 25.99%
+    assert growth.eps_cagr_3y == pytest.approx(25.99, rel=1e-2)
+    assert len(growth.revenue_history) == 4
+    assert len(growth.eps_history) == 4
+
+
+def test_mock_provider_all_emitens_have_complete_data():
+    from app.data_providers.mock_provider import MockDataProvider
+    from app.engines.scoring_engine import ScoringEngine
+    
+    provider = MockDataProvider()
+    tickers = provider.list_all_tickers()
+    assert len(tickers) == 10
+    
+    for t in tickers:
+        raw = provider.get_keystats(t)
+        assert raw is not None
+        assert raw.current_period.eps > 0
+        assert raw.current_period.revenue > 0
+        assert raw.current_period.net_income > 0
+        assert raw.previous_period is not None
+        assert len(raw.historical_periods) >= 3
+        
+        report = ScoringEngine.analyze_emiten(raw)
+        assert report.eps > 0
+        assert report.revenue > 0
+        assert report.net_income > 0
+        assert report.growth.eps_cagr_3y is not None
+        assert report.growth.revenue_cagr_3y is not None
+        assert len(report.growth.revenue_history) >= 4
+

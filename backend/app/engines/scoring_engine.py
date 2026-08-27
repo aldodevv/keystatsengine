@@ -4,7 +4,7 @@ Computes the 5-axis Radar Scores, Composite Fundamental Score (0-100),
 Letter Grade (A+ to F), Final Verdict, and Bull/Bear Case Synthesizer.
 """
 
-from typing import List
+from typing import List, Optional, Dict, Any
 from app.models.keystats import RawKeyStats
 from app.models.score import (
     ValuationResult,
@@ -76,6 +76,9 @@ class ScoringEngine:
             price_change_pct=raw.price_change_pct or 0.0,
             is_realtime_price=raw.is_realtime,
             market_cap=raw.market_cap,
+            revenue=raw.current_period.revenue,
+            net_income=raw.current_period.net_income,
+            eps=raw.current_period.eps,
             valuation=val,
             profitability=prof,
             solvency=solv,
@@ -104,7 +107,7 @@ class ScoringEngine:
         qual: QualityScoreResult,
         cf: CashFlowDividendResult,
         is_bank: bool,
-        bank_data: dict
+        bank_data: Optional[Dict[str, Any]] = None
     ) -> RadarScore:
         # A. Valuation Score (0-100)
         # Higher score = More undervalued / Attractive price
@@ -156,13 +159,21 @@ class ScoringEngine:
         
         # D. Growth Score (0-100)
         growth_score = 45.0
-        if growth.eps_growth_yoy >= 20.0: growth_score += 25
-        elif growth.eps_growth_yoy >= 10.0: growth_score += 15
-        elif growth.eps_growth_yoy < 0: growth_score -= 20
+        if growth.eps_growth_yoy >= 20.0: growth_score += 20
+        elif growth.eps_growth_yoy >= 10.0: growth_score += 12
+        elif growth.eps_growth_yoy < 0: growth_score -= 15
         
-        if growth.revenue_growth_yoy >= 15.0: growth_score += 20
-        elif growth.revenue_growth_yoy >= 8.0: growth_score += 10
-        elif growth.revenue_growth_yoy < 0: growth_score -= 15
+        if growth.revenue_growth_yoy >= 15.0: growth_score += 15
+        elif growth.revenue_growth_yoy >= 8.0: growth_score += 8
+        elif growth.revenue_growth_yoy < 0: growth_score -= 10
+        
+        # Multi-year CAGR compounding bonus
+        if growth.eps_cagr_3y and growth.eps_cagr_3y >= 12.0: growth_score += 10
+        elif growth.eps_cagr_3y and growth.eps_cagr_3y >= 6.0: growth_score += 5
+        elif growth.eps_cagr_3y and growth.eps_cagr_3y < -5.0: growth_score -= 10
+        
+        if growth.revenue_cagr_3y and growth.revenue_cagr_3y >= 10.0: growth_score += 8
+        elif growth.revenue_cagr_3y and growth.revenue_cagr_3y >= 5.0: growth_score += 4
         
         growth_score = max(5.0, min(100.0, growth_score))
         
@@ -223,7 +234,7 @@ class ScoringEngine:
         qual: QualityScoreResult,
         cf: CashFlowDividendResult,
         growth: GrowthResult,
-        bank_data: dict
+        bank_data: Optional[Dict[str, Any]] = None
     ):
         bulls = []
         bears = []
@@ -280,11 +291,22 @@ class ScoringEngine:
             bulls.append(f"Imbal hasil dividen menarik ({cf.dividend_yield}% Yield) dengan cash payout terjaga.")
             greens.append(f"Dividend Cash Cow ({cf.dividend_yield}% Yield).")
             
-        # Growth
+        # Growth & EPS Insights
         if growth.eps_growth_yoy > 15.0:
             bulls.append(f"Pertumbuhan EPS YoY kuat di angka +{growth.eps_growth_yoy}%.")
+            greens.append(f"Laba per lembar saham naik +{growth.eps_growth_yoy}% YoY.")
         elif growth.eps_growth_yoy < -10.0:
-            bears.append(f"Terjadi kontraksi pertumbuhan laba YoY ({growth.eps_growth_yoy}%).")
+            bears.append(f"Terjadi kontraksi pertumbuhan laba EPS YoY ({growth.eps_growth_yoy}%).")
+            reds.append(f"EPS terkontraksi {growth.eps_growth_yoy}% YoY.")
+            
+        if growth.eps_cagr_3y and growth.eps_cagr_3y >= 10.0:
+            bulls.append(f"Pertumbuhan EPS multi-tahun solid (3-Year CAGR +{growth.eps_cagr_3y}%).")
+            greens.append(f"Konsistensi pertumbuhan EPS jangka panjang (CAGR {growth.eps_cagr_3y}%).")
+        elif growth.eps_cagr_3y and growth.eps_cagr_3y < -5.0:
+            bears.append(f"Tren EPS multi-tahun menurun (3-Year CAGR {growth.eps_cagr_3y}%).")
+            
+        if growth.revenue_cagr_3y and growth.revenue_cagr_3y >= 10.0:
+            greens.append(f"Ekspansi pendapatan konsisten (Revenue 3Y CAGR +{growth.revenue_cagr_3y}%).")
             
         # Bank specific insights
         if bank_data:
@@ -305,7 +327,7 @@ class ScoringEngine:
         cf: CashFlowDividendResult,
         growth: GrowthResult,
         is_bank: bool,
-        bank_data: dict
+        bank_data: Optional[Dict[str, Any]] = None
     ) -> List[PriceSensitivityScenario]:
         """Calculates how composite fundamental score and verdict change dynamically across price scenarios."""
         scenarios = []

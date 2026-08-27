@@ -24,6 +24,7 @@ class VerdictAction(str, Enum):
 class ValuationResult(BaseModel):
     per: float = 0.0
     pbv: float = 0.0
+    ps_ratio: float = 0.0  # Price-to-Sales (P/S)
     ev_ebitda: float = 0.0
     peg_ratio: Optional[float] = None
     graham_number: Optional[float] = None
@@ -59,7 +60,7 @@ class SolvencyResult(BaseModel):
 
 
 class QualityScoreResult(BaseModel):
-    piotroski_f_score: int = Field(..., ge=0, le=9)
+    piotroski_f_score: int = Field(ge=0, le=9)
     piotroski_details: Dict[str, bool] = Field(default_factory=dict)
     beneish_m_score: Optional[float] = None
     is_manipulation_risk: bool = False
@@ -83,19 +84,36 @@ class CashFlowDividendResult(BaseModel):
 
 
 class GrowthResult(BaseModel):
+    # Current vs Previous Financial Figures
+    revenue_current: float = 0.0
+    revenue_previous: Optional[float] = None
+    net_income_current: float = 0.0
+    net_income_previous: Optional[float] = None
+    eps_current: float = 0.0
+    eps_previous: Optional[float] = None
+    
+    # Growth Percentages
     revenue_growth_yoy: float = 0.0  # %
     net_income_growth_yoy: float = 0.0  # %
     eps_growth_yoy: float = 0.0  # %
+    
+    # Multi-Year Compounding Rates (3-Year CAGR)
     revenue_cagr_3y: Optional[float] = None
     net_income_cagr_3y: Optional[float] = None
+    eps_cagr_3y: Optional[float] = None
+    
+    # Historical Series for Charts / Trend Tables
+    historical_periods_count: int = 0
+    eps_history: List[Dict[str, Any]] = Field(default_factory=list)
+    revenue_history: List[Dict[str, Any]] = Field(default_factory=list)
 
 
 class RadarScore(BaseModel):
-    valuation: float = Field(..., ge=0, le=100, description="Score 0-100")
-    profitability: float = Field(..., ge=0, le=100, description="Score 0-100")
-    financial_health: float = Field(..., ge=0, le=100, description="Score 0-100")
-    growth: float = Field(..., ge=0, le=100, description="Score 0-100")
-    cash_flow_quality: float = Field(..., ge=0, le=100, description="Score 0-100")
+    valuation: float = Field(ge=0, le=100, description="Score 0-100")
+    profitability: float = Field(ge=0, le=100, description="Score 0-100")
+    financial_health: float = Field(ge=0, le=100, description="Score 0-100")
+    growth: float = Field(ge=0, le=100, description="Score 0-100")
+    cash_flow_quality: float = Field(ge=0, le=100, description="Score 0-100")
 
 
 class PriceSensitivityScenario(BaseModel):
@@ -120,6 +138,11 @@ class EmitenAnalysisReport(BaseModel):
     is_realtime_price: bool = True
     market_cap: float
     
+    # Top-Level Financial Scale
+    revenue: float = 0.0
+    net_income: float = 0.0
+    eps: float = 0.0
+    
     # Calculated Pillars
     valuation: ValuationResult
     profitability: ProfitabilityResult
@@ -131,8 +154,8 @@ class EmitenAnalysisReport(BaseModel):
     bank_metrics: Optional[Dict[str, Any]] = None
     
     # Overall Synthetic Scores
-    composite_score: float = Field(..., ge=0, le=100, description="Composite Fundamental Score 0-100")
-    grade: str = Field(..., description="A+, A, B, C, D, or F")
+    composite_score: float = Field(ge=0, le=100, description="Composite Fundamental Score 0-100")
+    grade: str = Field(description="A+, A, B, C, D, or F")
     radar: RadarScore
     verdict: VerdictAction
     

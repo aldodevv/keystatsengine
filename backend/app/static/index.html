@@ -97,9 +97,27 @@
                 </button>
             </nav>
 
-            <!-- Status Indicator -->
-            <div class="hidden md:flex items-center gap-2 shrink-0">
-                <div class="flex items-center gap-1.5 px-3 py-1 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-400 text-xs font-mono">
+            <!-- Currency Tools & Status Indicators -->
+            <div class="flex items-center gap-2 shrink-0">
+                <!-- Live Kurs Indicator & Converter Modal Trigger -->
+                <button id="fx-rate-pill" class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl bg-dark-bg border border-amber-500/30 hover:border-amber-400 text-amber-300 text-xs font-mono transition shadow-sm cursor-pointer group" title="Klik untuk membuka Kalkulator Konversi IDR ⇄ USD">
+                    <span class="w-2 h-2 rounded-full bg-amber-400 pulse-amber"></span>
+                    <span id="nav-fx-rate-text" class="font-bold">1 USD = Rp 17,712</span>
+                    <span class="text-[10px] text-slate-400 hidden xl:inline group-hover:text-white">💱 Kurs</span>
+                </button>
+
+                <!-- Currency Switcher Toggle -->
+                <div class="flex items-center bg-dark-bg border border-dark-border p-0.5 rounded-xl font-mono text-xs font-bold shrink-0">
+                    <button id="currency-btn-idr" class="currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-white bg-brand-600 shadow-sm flex items-center gap-1" data-currency="IDR" title="Tampilkan Nilai dalam Rupiah (IDR)">
+                        <span>Rp</span><span class="hidden sm:inline">IDR</span>
+                    </button>
+                    <button id="currency-btn-usd" class="currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-1" data-currency="USD" title="Tampilkan Nilai dalam Dolar AS (USD)">
+                        <span>$</span><span class="hidden sm:inline">USD</span>
+                    </button>
+                </div>
+
+                <!-- Status Indicator -->
+                <div class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-400 text-xs font-mono">
                     <span class="w-2 h-2 rounded-full bg-brand-400 pulse-green"></span>
                     <span>LIVE IDX</span>
                 </div>
@@ -497,6 +515,72 @@
                             <div class="text-[9px] text-slate-500">Efisiensi BOPO</div>
                         </div>
                     </div>
+                <!-- Dedicated Financial Performance & 4-Year History Panel (Revenue, Net Income, EPS) -->
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-xl space-y-4">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-dark-border pb-3">
+                        <div>
+                            <h2 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
+                                <span>📊</span> Performa Finansial, EPS & Pertumbuhan Multi-Tahun
+                            </h2>
+                            <p class="text-xs text-slate-400 mt-0.5">Analisis tren pendapatan riil, laba bersih, dan EPS historis dari laporan keuangan.</p>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-brand-500/15 text-brand-300 border border-brand-500/30">
+                                3Y EPS CAGR: <strong id="r-cagr-eps">+14.2%</strong>
+                            </span>
+                            <span class="text-[11px] font-mono px-2.5 py-1 rounded bg-cyan-500/15 text-cyan-300 border border-cyan-500/30">
+                                3Y Rev CAGR: <strong id="r-cagr-rev">+11.5%</strong>
+                            </span>
+                        </div>
+                    </div>
+
+                    <!-- Top 3 Scale Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+                        <div class="bg-dark-bg p-4 rounded-xl border border-dark-border">
+                            <span class="text-slate-400 text-xs block">Pendapatan Tahunan (Revenue)</span>
+                            <div class="flex items-baseline justify-between mt-1">
+                                <span id="r-revenue-val" class="text-lg sm:text-xl font-bold font-mono text-cyan-400">Rp 198.5 T</span>
+                                <span id="r-revenue-growth-badge" class="text-xs font-bold font-mono text-brand-400">+11.5% YoY</span>
+                            </div>
+                            <span class="text-[10px] text-slate-500 mt-1 block">Top-Line Sales</span>
+                        </div>
+
+                        <div class="bg-dark-bg p-4 rounded-xl border border-dark-border">
+                            <span class="text-slate-400 text-xs block">Laba Bersih (Net Income)</span>
+                            <div class="flex items-baseline justify-between mt-1">
+                                <span id="r-net-income-val" class="text-lg sm:text-xl font-bold font-mono text-emerald-400">Rp 60.4 T</span>
+                                <span id="r-net-income-growth-badge" class="text-xs font-bold font-mono text-brand-400">+10.9% YoY</span>
+                            </div>
+                            <span class="text-[10px] text-slate-500 mt-1 block">Bottom-Line Profit</span>
+                        </div>
+
+                        <div class="bg-dark-bg p-4 rounded-xl border border-dark-border">
+                            <span class="text-slate-400 text-xs block">Laba Bersih per Saham (EPS)</span>
+                            <div class="flex items-baseline justify-between mt-1">
+                                <span id="r-eps-val" class="text-lg sm:text-xl font-bold font-mono text-amber-400">Rp 398.7</span>
+                                <span id="r-eps-growth-badge" class="text-xs font-bold font-mono text-brand-400">+10.9% YoY</span>
+                            </div>
+                            <span class="text-[10px] text-slate-500 mt-1 block">Earning Per Share</span>
+                        </div>
+                    </div>
+
+                    <!-- Multi-Year History Table -->
+                    <div class="overflow-x-auto rounded-xl border border-dark-border">
+                        <table class="w-full text-left text-xs font-mono whitespace-nowrap">
+                            <thead class="bg-dark-surface/90 border-b border-dark-border text-slate-300 font-sans uppercase text-[10px] tracking-wider">
+                                <tr>
+                                    <th class="p-3">Tahun Buku</th>
+                                    <th class="p-3 text-right">Pendapatan (Revenue)</th>
+                                    <th class="p-3 text-right">Laba Bersih (Net Income)</th>
+                                    <th class="p-3 text-right text-amber-300">EPS (Rp/lembar)</th>
+                                    <th class="p-3 text-right">Net Profit Margin</th>
+                                </tr>
+                            </thead>
+                            <tbody id="r-history-tbody" class="divide-y divide-dark-border bg-dark-bg/60">
+                                <!-- Rendered dynamically by JS -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Price Sensitivity Simulator -->
@@ -638,42 +722,77 @@
         <!-- ========================================================================= -->
         <section id="section-screener" class="tab-content hidden space-y-6">
             
-            <!-- Strategy Preset Cards (5 Cards) -->
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <button class="screener-preset-card active text-left p-4 rounded-2xl border transition-all duration-200 bg-brand-600/10 border-brand-500 text-white shadow-lg" data-preset="BUFFETT_MOAT">
-                    <div class="text-xl mb-1">🏰</div>
-                    <div class="font-bold text-sm text-brand-300">Buffett Moat</div>
-                    <div class="text-[11px] text-slate-400 mt-1">ROE &gt;14%, DER &lt;1.0x, Piotroski &ge;6, FCF Positif.</div>
+            <!-- Strategy Preset Cards (7 Cards) -->
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3">
+                <button class="screener-preset-card active text-left p-3.5 rounded-2xl border transition-all duration-200 bg-brand-600/10 border-brand-500 text-white shadow-lg" data-preset="BUFFETT_MOAT">
+                    <div class="text-lg mb-1">🏰</div>
+                    <div class="font-bold text-xs text-brand-300">Buffett Moat</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">ROE &gt;14%, DER &lt;1.0x, Piotroski &ge;6.</div>
                 </button>
-                <button class="screener-preset-card text-left p-4 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="DIVIDEND_CASH_COW">
-                    <div class="text-xl mb-1">🐄</div>
-                    <div class="font-bold text-sm text-purple-300">Dividend Cash Cow</div>
-                    <div class="text-[11px] text-slate-400 mt-1">Yield &gt;4.5%, Safe DPR &lt;80%, Safe Altman Z.</div>
+                <button class="screener-preset-card text-left p-3.5 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="AFFORDABLE_GEMS">
+                    <div class="text-lg mb-1">🪙</div>
+                    <div class="font-bold text-xs text-amber-300">Affordable Gems</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">Harga &le; Rp 2.500, Skor &ge;60, ROE &gt;12%.</div>
                 </button>
-                <button class="screener-preset-card text-left p-4 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="GARP">
-                    <div class="text-xl mb-1">🚀</div>
-                    <div class="font-bold text-sm text-emerald-300">GARP Growth</div>
-                    <div class="text-[11px] text-slate-400 mt-1">PEG &lt;1.2x, EPS Growth &gt;8%, ROE &gt;10%.</div>
+                <button class="screener-preset-card text-left p-3.5 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="UNDERVALUED_DEALS">
+                    <div class="text-lg mb-1">🎯</div>
+                    <div class="font-bold text-xs text-emerald-300">Undervalued BUY</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">Rekomendasi BUY, Upside &gt;10%, Skor &ge;65.</div>
                 </button>
-                <button class="screener-preset-card text-left p-4 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="DEEP_VALUE">
-                    <div class="text-xl mb-1">💎</div>
-                    <div class="font-bold text-sm text-cyan-300">Deep Value</div>
-                    <div class="text-[11px] text-slate-400 mt-1">PBV &lt;1.5x, PER &lt;12x, Upside &gt;15%.</div>
+                <button class="screener-preset-card text-left p-3.5 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="DIVIDEND_CASH_COW">
+                    <div class="text-lg mb-1">🐄</div>
+                    <div class="font-bold text-xs text-purple-300">Dividend Cow</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">Yield &gt;4.5%, Safe DPR &lt;80%, Altman Safe.</div>
                 </button>
-                <button class="screener-preset-card text-left p-4 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="MOMENTUM_QUALITY">
-                    <div class="text-xl mb-1">⚡</div>
-                    <div class="font-bold text-sm text-amber-300">Momentum Quality</div>
-                    <div class="text-[11px] text-slate-400 mt-1">EPS Growth &gt;10%, Revenue &gt;6%, Piotroski &ge;6.</div>
+                <button class="screener-preset-card text-left p-3.5 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="GARP">
+                    <div class="text-lg mb-1">🚀</div>
+                    <div class="font-bold text-xs text-cyan-300">GARP Growth</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">PEG &lt;1.2x, EPS Growth &gt;8%, ROE &gt;10%.</div>
+                </button>
+                <button class="screener-preset-card text-left p-3.5 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="DEEP_VALUE">
+                    <div class="text-lg mb-1">💎</div>
+                    <div class="font-bold text-xs text-rose-300">Deep Value</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">PBV &lt;1.5x, PER &lt;12x, Upside &gt;15%.</div>
+                </button>
+                <button class="screener-preset-card text-left p-3.5 rounded-2xl border transition-all duration-200 bg-dark-card border-dark-border text-slate-300 hover:border-slate-500" data-preset="MOMENTUM_QUALITY">
+                    <div class="text-lg mb-1">⚡</div>
+                    <div class="font-bold text-xs text-yellow-300">Momentum</div>
+                    <div class="text-[10px] text-slate-400 mt-0.5 leading-tight">EPS Growth &gt;10%, Revenue &gt;6%, Piotroski &ge;6.</div>
+                </button>
+            </div>
+
+            <!-- Quick Price Tier Badges -->
+            <div class="flex flex-wrap items-center gap-2 bg-dark-card/60 p-3 rounded-xl border border-dark-border">
+                <span class="text-xs text-slate-400 font-medium mr-1 flex items-center gap-1">
+                    <span>💵 Filter Cepat Harga:</span>
+                </span>
+                <button class="quick-price-btn active px-3 py-1 text-xs font-semibold rounded-lg bg-brand-600 text-white transition border border-brand-500 shadow-sm" data-price="all">
+                    Semua Harga
+                </button>
+                <button class="quick-price-btn px-3 py-1 text-xs font-semibold rounded-lg bg-dark-surface hover:bg-dark-border text-slate-300 transition border border-dark-border" data-price="budget">
+                    🪙 &lt; Rp 1.000 (Budget Gems)
+                </button>
+                <button class="quick-price-btn px-3 py-1 text-xs font-semibold rounded-lg bg-dark-surface hover:bg-dark-border text-slate-300 transition border border-dark-border" data-price="mid">
+                    💵 Rp 1.000 - Rp 5.000 (Mid-Range)
+                </button>
+                <button class="quick-price-btn px-3 py-1 text-xs font-semibold rounded-lg bg-dark-surface hover:bg-dark-border text-slate-300 transition border border-dark-border" data-price="premium">
+                    💎 &gt; Rp 5.000 (Blue Chips)
+                </button>
+                <button class="quick-price-btn px-3 py-1 text-xs font-semibold rounded-lg bg-emerald-950/40 hover:bg-emerald-900/50 text-emerald-300 transition border border-emerald-800/60" data-price="buy_only">
+                    ⭐ Rekomendasi BUY Saham Bagus
                 </button>
             </div>
 
             <!-- Custom Filters Drawer -->
             <div class="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
-                <div class="flex items-center justify-between">
+                <div class="flex items-center justify-between flex-wrap gap-2">
                     <h2 class="font-bold text-sm text-white flex items-center gap-2">
-                        <span>⚙️</span> Kriteria Filter Kustom
+                        <span>⚙️</span> Kriteria Filter & Rentang Harga Kustom
                     </h2>
                     <div class="flex items-center gap-2">
+                        <button id="screener-reset-btn" class="px-3 py-1.5 bg-dark-surface hover:bg-dark-border text-slate-400 hover:text-white rounded-lg text-xs font-mono transition border border-dark-border">
+                            Reset
+                        </button>
                         <button id="screener-export-csv" class="px-3 py-1.5 bg-dark-surface hover:bg-dark-border text-slate-300 rounded-lg text-xs font-mono transition flex items-center gap-1 border border-dark-border">
                             <span>📥 Export CSV</span>
                         </button>
@@ -683,39 +802,74 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 text-xs font-mono">
+                <!-- Input Matrix -->
+                <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3 text-xs font-mono">
+                    <div>
+                        <label class="text-brand-300 block mb-1 text-[11px] font-semibold">Min Harga (Rp)</label>
+                        <input type="number" id="f-min-price" placeholder="e.g. 500" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white placeholder-slate-600 focus:border-brand-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="text-brand-300 block mb-1 text-[11px] font-semibold">Max Harga (Rp)</label>
+                        <input type="number" id="f-max-price" placeholder="e.g. 5000" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white placeholder-slate-600 focus:border-brand-500 focus:outline-none">
+                    </div>
                     <div>
                         <label class="text-slate-400 block mb-1 text-[11px]">Min ROE (%)</label>
-                        <input type="number" id="f-min-roe" placeholder="e.g. 15" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                        <input type="number" id="f-min-roe" placeholder="e.g. 15" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white placeholder-slate-600 focus:border-brand-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="text-slate-400 block mb-1 text-[11px]">Max DER (x)</label>
-                        <input type="number" step="0.1" id="f-max-der" placeholder="e.g. 1.0" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                        <input type="number" step="0.1" id="f-max-der" placeholder="e.g. 1.0" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white placeholder-slate-600 focus:border-brand-500 focus:outline-none">
                     </div>
                     <div>
-                        <label class="text-slate-400 block mb-1 text-[11px]">Min Piotroski (0-9)</label>
-                        <input type="number" id="f-min-pio" placeholder="e.g. 6" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                        <label class="text-slate-400 block mb-1 text-[11px]">Min Piotroski</label>
+                        <input type="number" id="f-min-pio" placeholder="0-9 (e.g. 6)" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white placeholder-slate-600 focus:border-brand-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="text-slate-400 block mb-1 text-[11px]">Min Div Yield (%)</label>
-                        <input type="number" id="f-min-div" placeholder="e.g. 4" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                        <input type="number" id="f-min-div" placeholder="e.g. 4" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white placeholder-slate-600 focus:border-brand-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="text-slate-400 block mb-1 text-[11px]">Max PER (x)</label>
-                        <input type="number" id="f-max-pe" placeholder="e.g. 15" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                        <input type="number" id="f-max-pe" placeholder="e.g. 15" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white placeholder-slate-600 focus:border-brand-500 focus:outline-none">
                     </div>
                     <div>
-                        <label class="text-slate-400 block mb-1 text-[11px]">Min Score (0-100)</label>
-                        <input type="number" id="f-min-score" placeholder="e.g. 70" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white">
+                        <label class="text-slate-400 block mb-1 text-[11px]">Min Skor (0-100)</label>
+                        <input type="number" id="f-min-score" placeholder="e.g. 65" class="w-full bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1.5 text-white placeholder-slate-600 focus:border-brand-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <!-- Toggle Options & Sort -->
+                <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-dark-border/60 text-xs">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <label class="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                            <input type="checkbox" id="f-buy-only" class="rounded bg-dark-bg border-dark-border text-brand-500 focus:ring-0">
+                            <span>⭐ Hanya Rekomendasi BUY / STRONG BUY</span>
+                        </label>
+                        <label class="flex items-center gap-1.5 cursor-pointer text-slate-300 hover:text-white">
+                            <input type="checkbox" id="f-undervalued-only" class="rounded bg-dark-bg border-dark-border text-brand-500 focus:ring-0">
+                            <span>📈 Hanya Undervalued (Upside &gt; 0%)</span>
+                        </label>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <span class="text-slate-400 text-[11px]">Urutkan:</span>
+                        <select id="f-sort-by" class="bg-dark-bg border border-dark-border rounded-lg px-2.5 py-1 text-white text-xs focus:outline-none focus:border-brand-500">
+                            <option value="composite_score">Skor Fundamental Tertinggi</option>
+                            <option value="price_asc">Harga Termurah (Ascending)</option>
+                            <option value="price_desc">Harga Tertinggi (Descending)</option>
+                            <option value="upside_pct">Potensi Upside Tertinggi</option>
+                            <option value="dividend_yield">Dividend Yield Tertinggi</option>
+                            <option value="roe">ROE Tertinggi</option>
+                        </select>
                     </div>
                 </div>
             </div>
 
             <!-- Screener Results Table -->
             <div class="bg-dark-card border border-dark-border rounded-2xl shadow-xl overflow-hidden space-y-4 p-4 sm:p-5">
-                <div class="flex items-center justify-between">
-                    <span id="screener-count-badge" class="text-xs font-mono font-bold text-brand-400">Menampilkan 5 Emiten Terpilih</span>
-                    <span class="text-[11px] text-slate-400">Diurutkan berdasarkan skor fundamental tertinggi</span>
+                <div class="flex items-center justify-between flex-wrap gap-2">
+                    <span id="screener-count-badge" class="text-xs font-mono font-bold text-brand-400">Menampilkan 0 Emiten Terpilih</span>
+                    <span class="text-[11px] text-slate-400" id="screener-sort-desc">Diurutkan berdasarkan skor fundamental tertinggi</span>
                 </div>
                 <div class="table-container border border-dark-border">
                     <table class="w-full text-left text-xs font-mono whitespace-nowrap">
@@ -726,6 +880,7 @@
                                 <th class="p-3">Company Name</th>
                                 <th class="p-3">Sector</th>
                                 <th class="p-3 text-right">Price</th>
+                                <th class="p-3 text-right">Upside</th>
                                 <th class="p-3 text-right">PER</th>
                                 <th class="p-3 text-right">PBV</th>
                                 <th class="p-3 text-right">ROE</th>
@@ -762,6 +917,109 @@
             </div>
         </div>
     </footer>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: INTERACTIVE LIVE IDR <-> USD CONVERTER                             -->
+    <!-- ========================================================================= -->
+    <div id="currency-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm hidden modal-backdrop">
+        <div class="bg-dark-card border border-dark-border rounded-3xl w-full max-w-lg shadow-2xl overflow-hidden modal-content-box relative">
+            <!-- Modal Header -->
+            <div class="p-5 sm:p-6 border-b border-dark-border flex items-center justify-between bg-gradient-to-r from-dark-surface/50 to-dark-card">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400 text-lg">
+                        💱
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-extrabold text-white">Kalkulator Konversi IDR ⇄ USD</h3>
+                        <p class="text-xs text-slate-400">Data nilai tukar pasar valas terupdate real-time</p>
+                    </div>
+                </div>
+                <button id="close-currency-modal-btn" class="w-8 h-8 rounded-xl bg-dark-bg border border-dark-border text-slate-400 hover:text-white flex items-center justify-center transition">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Modal Body -->
+            <div class="p-5 sm:p-6 space-y-5">
+                <!-- Live Rate Info Box -->
+                <div class="bg-dark-bg/90 border border-amber-500/30 rounded-2xl p-4 flex items-center justify-between gap-3">
+                    <div class="space-y-1">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2 h-2 rounded-full bg-amber-400 pulse-amber"></span>
+                            <span class="text-xs font-mono font-bold text-amber-300">KURS LIVE TERUPDATE</span>
+                            <span id="modal-fx-source" class="text-[10px] font-mono text-slate-400 bg-dark-surface px-2 py-0.5 rounded-full border border-dark-border">Yahoo Finance FX</span>
+                        </div>
+                        <div id="modal-fx-rate-highlight" class="text-xl sm:text-2xl font-mono font-extrabold text-white">
+                            1 USD = Rp 17,712
+                        </div>
+                        <div class="text-[11px] text-slate-400 font-mono flex items-center gap-2">
+                            <span id="modal-fx-inverse">1 IDR = $0.00005646</span>
+                            <span>•</span>
+                            <span id="modal-fx-updated">Update: Hari Ini</span>
+                        </div>
+                    </div>
+                    <button id="modal-refresh-rate-btn" class="px-3 py-2 bg-dark-surface hover:bg-slate-700 text-slate-200 rounded-xl text-xs font-mono font-semibold transition border border-dark-border flex items-center gap-1.5 shrink-0 shadow-sm" title="Perbarui kurs langsung dari server">
+                        <svg id="modal-refresh-spinner" class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+
+                <!-- Converter Inputs -->
+                <div class="space-y-3">
+                    <!-- Source Input Container -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between text-xs">
+                            <label id="converter-label-from" class="text-slate-300 font-medium">Nominal Rupiah (IDR):</label>
+                            <span class="text-[11px] font-mono text-brand-400" id="converter-badge-from">🇮🇩 Indonesia Rupiah</span>
+                        </div>
+                        <div class="relative">
+                            <span id="converter-symbol-from" class="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-slate-400 text-sm">Rp</span>
+                            <input type="number" id="converter-input-from" placeholder="Masukkan jumlah..." value="10000000" class="w-full bg-dark-bg border border-dark-border rounded-xl pl-11 pr-4 py-3 text-white font-mono text-base font-bold focus:border-brand-500">
+                        </div>
+                    </div>
+
+                    <!-- Swap Direction Button -->
+                    <div class="flex justify-center -my-1 relative z-10">
+                        <button id="converter-swap-btn" class="w-9 h-9 rounded-full bg-brand-600 hover:bg-brand-500 text-white shadow-lg shadow-brand-600/30 flex items-center justify-center transition transform hover:scale-110 active:scale-95 border border-brand-400/40" title="Tukar Arah Konversi (IDR ⇄ USD)">
+                            ⇅
+                        </button>
+                    </div>
+
+                    <!-- Target Result Container -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between text-xs">
+                            <label id="converter-label-to" class="text-slate-300 font-medium">Hasil Konversi (USD):</label>
+                            <span class="text-[11px] font-mono text-cyan-400" id="converter-badge-to">🇺🇸 US Dollar</span>
+                        </div>
+                        <div class="relative">
+                            <span id="converter-symbol-to" class="absolute left-3.5 top-1/2 -translate-y-1/2 font-mono font-bold text-cyan-400 text-sm">$</span>
+                            <input type="number" id="converter-input-to" placeholder="Hasil..." class="w-full bg-dark-surface/60 border border-dark-border rounded-xl pl-11 pr-4 py-3 text-cyan-300 font-mono text-base font-bold focus:border-cyan-500" readonly>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Quick Presets -->
+                <div class="space-y-2">
+                    <span class="text-[11px] font-mono text-slate-400 block uppercase">Pilihan Cepat Nominal:</span>
+                    <div id="converter-presets-container" class="flex flex-wrap gap-1.5">
+                        <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="1000000">Rp 1 Juta</button>
+                        <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="10000000">Rp 10 Juta</button>
+                        <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="50000000">Rp 50 Juta</button>
+                        <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="100000000">Rp 100 Juta</button>
+                        <button class="conv-preset-chip px-2.5 py-1 rounded-lg bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono text-slate-300 hover:text-white transition" data-amount="1000000000">Rp 1 Miliar</button>
+                    </div>
+                </div>
+
+                <!-- Footer Summary Text -->
+                <div id="converter-result-summary" class="p-3 bg-dark-bg/60 border border-dark-border/80 rounded-xl text-xs font-mono text-slate-300 flex items-center justify-between">
+                    <span id="converter-summary-text">Rp 10,000,000 = $564.60</span>
+                    <button id="converter-copy-btn" class="px-2.5 py-1 rounded-lg bg-dark-surface hover:bg-slate-700 text-xs text-slate-300 hover:text-white transition border border-dark-border flex items-center gap-1">
+                        <span>📋</span> <span>Salin</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <!-- Frontend Script -->
     <script src="/static/app.js"></script>

@@ -240,8 +240,8 @@ class MarketSummaryService:
             f"Tingkat Solvabilitas: DER {rep.solvency.der:.2f}x | Altman Z {rep.solvency.altman_z_score:.2f} ({rep.solvency.altman_zone})"
         ]
 
-        if rep.bank_metrics and rep.bank_metrics.is_bank:
-            rationale.append(f"Metrik Bank: NIM {rep.bank_metrics.nim:.2f}% | NPL Gross {rep.bank_metrics.npl_gross:.2f}% | CAR {rep.bank_metrics.car:.2f}%")
+        if rep.bank_metrics and rep.bank_metrics.get("is_bank"):
+            rationale.append(f"Metrik Bank: NIM {rep.bank_metrics.get('nim', 0):.2f}% | NPL Gross {rep.bank_metrics.get('npl_gross', 0):.2f}% | CAR {rep.bank_metrics.get('car', 0):.2f}%")
 
         return TopPickItem(
             ticker=rep.ticker,

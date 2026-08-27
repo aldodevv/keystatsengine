@@ -162,6 +162,7 @@ class FinancialHealthEngine:
         # 3Y CAGR calculation if historical_periods available
         rev_cagr = None
         ni_cagr = None
+        eps_cagr = None
         if len(raw.historical_periods) >= 3:
             oldest = raw.historical_periods[-1]
             n_years = max(1, curr.year - oldest.year)
@@ -169,13 +170,49 @@ class FinancialHealthEngine:
                 rev_cagr = round((((curr.revenue / oldest.revenue) ** (1 / n_years)) - 1) * 100, 2)
             if oldest.net_income > 0 and curr.net_income > 0:
                 ni_cagr = round((((curr.net_income / oldest.net_income) ** (1 / n_years)) - 1) * 100, 2)
+            if oldest.eps > 0 and curr.eps > 0:
+                eps_cagr = round((((curr.eps / oldest.eps) ** (1 / n_years)) - 1) * 100, 2)
+                
+        # Build timeline series
+        all_periods = [curr]
+        if raw.historical_periods:
+            all_periods.extend([p for p in raw.historical_periods if p.year != curr.year])
+        elif prev and prev.year != curr.year:
+            all_periods.append(prev)
+            
+        # Sort by year descending (latest first)
+        all_periods.sort(key=lambda p: p.year, reverse=True)
+        
+        eps_history = [
+            {"year": p.year, "eps": round(p.eps, 2)}
+            for p in all_periods
+        ]
+        revenue_history = [
+            {
+                "year": p.year,
+                "revenue": p.revenue,
+                "net_income": p.net_income,
+                "eps": round(p.eps, 2)
+            }
+            for p in all_periods
+        ]
                 
         return GrowthResult(
+            revenue_current=curr.revenue,
+            revenue_previous=prev.revenue if prev else None,
+            net_income_current=curr.net_income,
+            net_income_previous=prev.net_income if prev else None,
+            eps_current=curr.eps,
+            eps_previous=prev.eps if prev else None,
             revenue_growth_yoy=round(rev_growth, 2),
             net_income_growth_yoy=round(ni_growth, 2),
             eps_growth_yoy=round(eps_growth, 2),
             revenue_cagr_3y=rev_cagr,
-            net_income_cagr_3y=ni_cagr
+            net_income_cagr_3y=ni_cagr,
+            eps_cagr_3y=eps_cagr,
+            historical_periods_count=len(all_periods),
+            eps_history=eps_history,
+            revenue_history=revenue_history
         )
 
     # -------------------------------------------------------------
