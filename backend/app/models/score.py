@@ -5,6 +5,7 @@ Domain models for Calculated KeyStats, Composite Scores, Valuation Models, and A
 from typing import List, Optional, Dict, Any
 from pydantic import BaseModel, Field
 from enum import Enum
+from app.models.conviction import BuyConvictionReport
 
 
 class HealthZone(str, Enum):
@@ -167,3 +168,6 @@ class EmitenAnalysisReport(BaseModel):
     bear_cases: List[str] = Field(default_factory=list)
     red_flags: List[str] = Field(default_factory=list)
     green_flags: List[str] = Field(default_factory=list)
+    
+    # High-Conviction Buy Engine
+    buy_conviction: Optional[BuyConvictionReport] = None

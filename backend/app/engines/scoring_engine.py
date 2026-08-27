@@ -24,6 +24,7 @@ from app.engines.valuation_engine import ValuationEngine
 from app.engines.profitability_engine import ProfitabilityEngine
 from app.engines.financial_health import FinancialHealthEngine
 from app.engines.sector_bank_engine import SectorBankEngine
+from app.engines.conviction_engine import ConvictionEngine
 
 
 class ScoringEngine:
@@ -66,6 +67,11 @@ class ScoringEngine:
         # 6. Price Sensitivity Simulation Scenarios (-15% to +15%)
         scenarios = ScoringEngine._generate_price_sensitivity(raw, val, prof, solv, qual, cf_div, growth, is_bank, bank_data)
 
+        # 7. High-Conviction Buy Engine (MoS, Buy Zone, 10-Point Checklist, Position Sizing)
+        buy_conviction = ConvictionEngine.calculate(
+            raw, val, prof, solv, qual, cf_div, growth, composite_score, grade, is_bank, bank_data
+        )
+
         return EmitenAnalysisReport(
             ticker=raw.ticker.upper(),
             name=raw.name,
@@ -95,7 +101,8 @@ class ScoringEngine:
             bull_cases=bulls,
             bear_cases=bears,
             green_flags=greens,
-            red_flags=reds
+            red_flags=reds,
+            buy_conviction=buy_conviction
         )
 
     @staticmethod

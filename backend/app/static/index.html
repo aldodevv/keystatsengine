@@ -583,6 +583,125 @@
                     </div>
                 </div>
 
+                <!-- ========================================================================= -->
+                <!-- HIGH-CONVICTION BUY ENGINE & 10-POINT CHECKLIST (CONFIDENCE BOOSTER)       -->
+                <!-- ========================================================================= -->
+                <div class="bg-gradient-to-br from-dark-card via-dark-card to-brand-950/20 border border-brand-500/30 rounded-2xl p-5 sm:p-6 shadow-2xl space-y-5">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-dark-border pb-4">
+                        <div>
+                            <div class="flex items-center gap-2">
+                                <span class="px-2.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] font-mono font-bold tracking-wider uppercase border border-brand-500/30">Institutional Buy Engine</span>
+                                <span id="r-buy-zone-badge" class="px-3 py-0.5 rounded-full text-xs font-bold font-mono bg-brand-600/30 text-brand-300 border border-brand-500/40">🟢 STRONG ACCUMULATION ZONE</span>
+                            </div>
+                            <h2 class="text-base sm:text-lg font-bold text-white mt-1.5 flex items-center gap-2">
+                                <span>🛡️</span> Analisis Keyakinan Pembelian & Target Multi-Skenario
+                            </h2>
+                            <p id="r-buy-zone-desc" class="text-xs text-slate-300 mt-1 max-w-2xl leading-relaxed">
+                                Margin of Safety sangat tebal. Harga saat ini berada di area diskon premium dengan proteksi downside optimal.
+                            </p>
+                        </div>
+
+                        <!-- Conviction Meter Display -->
+                        <div class="bg-dark-bg/90 border border-dark-border p-4 rounded-xl flex items-center gap-4 self-start lg:self-auto min-w-[240px]">
+                            <div class="text-center flex-1">
+                                <span class="text-[10px] text-slate-400 uppercase font-semibold block">Conviction Meter</span>
+                                <div class="flex items-baseline justify-center gap-1 mt-0.5">
+                                    <span id="r-conviction-score" class="text-3xl font-extrabold font-mono text-brand-400">90%</span>
+                                </div>
+                                <span id="r-conviction-tier-badge" class="text-[10px] font-bold font-mono text-brand-300 block mt-0.5">HIGH CONVICTION</span>
+                            </div>
+                            <div class="h-10 w-px bg-dark-border"></div>
+                            <div class="text-center flex-1">
+                                <span class="text-[10px] text-slate-400 uppercase font-semibold block">Checklist Lolos</span>
+                                <div class="text-xl font-bold font-mono text-white mt-1">
+                                    <span id="r-passed-checks" class="text-brand-400">9</span><span class="text-xs text-slate-500">/10</span>
+                                </div>
+                                <span class="text-[9px] text-slate-400 block mt-0.5">Audit Finansial</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3 Multi-Scenario Valuation Target Cards -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3.5">
+                        <!-- Bear Case Floor -->
+                        <div class="bg-dark-bg/80 border border-rose-500/25 rounded-xl p-4 space-y-1.5 relative overflow-hidden">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-bold text-rose-400 flex items-center gap-1"><span>🐻</span> Bear Case (Safety Floor)</span>
+                                <span id="r-downside-risk-badge" class="font-mono text-[11px] text-rose-400 bg-rose-500/10 px-2 py-0.5 rounded">-18.9% Downside</span>
+                            </div>
+                            <div id="r-bear-price" class="text-xl font-extrabold font-mono text-white pt-1">Rp 3,850</div>
+                            <p class="text-[11px] text-slate-400 leading-snug">Batas bawah proteksi penurunan jika laba melambat. Level pengaman batas risiko terburuk.</p>
+                        </div>
+
+                        <!-- Base Case Target -->
+                        <div class="bg-dark-bg/80 border border-brand-500/40 rounded-xl p-4 space-y-1.5 relative overflow-hidden ring-1 ring-brand-500/20">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-bold text-brand-400 flex items-center gap-1"><span>⚖️</span> Base Case (Target Wajar TP1)</span>
+                                <span id="r-base-upside-badge" class="font-mono text-[11px] text-brand-400 bg-brand-500/10 px-2 py-0.5 rounded">+10.6% Upside</span>
+                            </div>
+                            <div id="r-base-price" class="text-xl font-extrabold font-mono text-brand-300 pt-1">Rp 5,253</div>
+                            <p class="text-[11px] text-slate-400 leading-snug">Target nilai wajar konsensus rata-rata DCF, Graham, & Multiples. Area Take Profit 1.</p>
+                        </div>
+
+                        <!-- Bull Case Target -->
+                        <div class="bg-dark-bg/80 border border-purple-500/30 rounded-xl p-4 space-y-1.5 relative overflow-hidden">
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="font-bold text-purple-400 flex items-center gap-1"><span>🐂</span> Bull Case (Target Ekspansi TP2)</span>
+                                <span id="r-bull-upside-badge" class="font-mono text-[11px] text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded">+38.2% Bull</span>
+                            </div>
+                            <div id="r-bull-price" class="text-xl font-extrabold font-mono text-purple-300 pt-1">Rp 6,566</div>
+                            <p class="text-[11px] text-slate-400 leading-snug">Target skenario optimis saat ekspansi pasar. Area Take Profit 2.</p>
+                        </div>
+                    </div>
+
+                    <!-- Position Sizing & Risk-to-Reward Bar -->
+                    <div class="bg-dark-bg/70 border border-dark-border rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 text-xs font-mono">
+                        <div class="space-y-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-slate-400 font-sans font-semibold">💼 Rekomendasi Alokasi Modal:</span>
+                                <strong id="r-max-alloc" class="text-amber-400 text-sm">Maksimal 15% - 20% Portofolio</strong>
+                            </div>
+                            <p id="r-alloc-rationale" class="text-[11px] text-slate-400 font-sans">Fundamental sangat kokoh, risiko rendah, cocok untuk core portfolio.</p>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <div class="text-right">
+                                <span class="text-[10px] text-slate-400 block uppercase">Risk-to-Reward (R:R)</span>
+                                <span id="r-rr-ratio" class="text-base font-bold text-cyan-400">2.02x R:R</span>
+                            </div>
+                            <div class="text-right pl-3 border-l border-dark-border">
+                                <span class="text-[10px] text-slate-400 block uppercase">Margin of Safety</span>
+                                <span id="r-mos-val" class="text-base font-bold text-brand-400">+24.5% MoS</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 10-Point Checklist Interactive Table -->
+                    <div class="space-y-2.5">
+                        <h3 class="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center justify-between">
+                            <span>📋 10-Point Institutional Quality Audit Checklist</span>
+                            <span class="text-[10px] text-slate-400 font-normal">Standardized Institutional Filter</span>
+                        </h3>
+                        <div class="overflow-x-auto rounded-xl border border-dark-border">
+                            <table class="w-full text-left text-xs font-mono whitespace-nowrap">
+                                <thead class="bg-dark-surface/90 border-b border-dark-border text-slate-300 font-sans uppercase text-[10px] tracking-wider">
+                                    <tr>
+                                        <th class="p-2.5 text-center w-8">#</th>
+                                        <th class="p-2.5">Parameter Kelayakan Beli</th>
+                                        <th class="p-2.5">Kategori</th>
+                                        <th class="p-2.5 text-right">Nilai Emiten</th>
+                                        <th class="p-2.5 text-center">Standar Benchmark</th>
+                                        <th class="p-2.5 text-center">Hasil Audit</th>
+                                        <th class="p-2.5">Keterangan</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="r-conviction-checklist-tbody" class="divide-y divide-dark-border bg-dark-bg/60">
+                                    <!-- Rendered dynamically by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Price Sensitivity Simulator -->
                 <div class="bg-dark-card border border-amber-500/25 rounded-2xl p-4 sm:p-5 shadow-xl space-y-3.5">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-dark-border pb-3">

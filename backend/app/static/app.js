@@ -613,6 +613,77 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // High-Conviction Buy Engine & 10-Point Checklist
+        if (data.buy_conviction) {
+            const bc = data.buy_conviction;
+            const sc = bc.scenarios;
+            const ps = bc.position_sizing;
+
+            // Buy Zone Badge & Description
+            const buyZoneBadge = document.getElementById('r-buy-zone-badge');
+            if (buyZoneBadge) {
+                buyZoneBadge.textContent = sc.buy_zone_label || sc.buy_zone;
+                if (sc.buy_zone === 'STRONG ACCUMULATION') {
+                    buyZoneBadge.className = "px-3 py-0.5 rounded-full text-xs font-bold font-mono bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shadow-sm shadow-emerald-500/20";
+                } else if (sc.buy_zone === 'MODERATE BUY') {
+                    buyZoneBadge.className = "px-3 py-0.5 rounded-full text-xs font-bold font-mono bg-amber-500/20 text-amber-300 border border-amber-500/40";
+                } else if (sc.buy_zone === 'FAIR / HOLD') {
+                    buyZoneBadge.className = "px-3 py-0.5 rounded-full text-xs font-bold font-mono bg-slate-500/20 text-slate-300 border border-slate-500/40";
+                } else {
+                    buyZoneBadge.className = "px-3 py-0.5 rounded-full text-xs font-bold font-mono bg-rose-500/20 text-rose-300 border border-rose-500/40";
+                }
+            }
+            setTxt('r-buy-zone-desc', sc.buy_zone_description || '');
+
+            // Conviction Meter
+            setTxt('r-conviction-score', `${Math.round(bc.conviction_score || 0)}%`);
+            setTxt('r-passed-checks', `${bc.passed_checks_count || 0}`);
+            const convTierBadge = document.getElementById('r-conviction-tier-badge');
+            if (convTierBadge) {
+                convTierBadge.textContent = bc.conviction_tier;
+                convTierBadge.className = bc.conviction_tier === 'HIGH CONVICTION'
+                    ? "text-[10px] font-bold font-mono text-emerald-400 block mt-0.5"
+                    : (bc.conviction_tier === 'MODERATE CONVICTION' ? "text-[10px] font-bold font-mono text-amber-400 block mt-0.5" : "text-[10px] font-bold font-mono text-rose-400 block mt-0.5");
+            }
+
+            // Multi-Scenario Target Prices
+            setTxt('r-bear-price', formatPrice(sc.bear_case_price || 0));
+            setTxt('r-downside-risk-badge', `-${(sc.downside_risk_pct || 0).toFixed(1)}% Downside`);
+            
+            setTxt('r-base-price', formatPrice(sc.base_case_price || 0));
+            setTxt('r-base-upside-badge', `+${(sc.upside_potential_pct || 0).toFixed(1)}% Upside`);
+
+            setTxt('r-bull-price', formatPrice(sc.bull_case_price || 0));
+            setTxt('r-bull-upside-badge', `+${(sc.bull_upside_pct || 0).toFixed(1)}% Bull`);
+
+            // Position Sizing & Money Management
+            setTxt('r-max-alloc', `Maksimal ${Math.round(ps.max_portfolio_allocation_pct || 0)}% Modal`);
+            setTxt('r-alloc-rationale', ps.allocation_rationale || '');
+            setTxt('r-rr-ratio', `${(sc.risk_to_reward_ratio || 0).toFixed(2)}x R:R`);
+            setTxt('r-mos-val', `${(sc.margin_of_safety_pct || 0) >= 0 ? '+' : ''}${(sc.margin_of_safety_pct || 0).toFixed(1)}% MoS`);
+
+            // 10-Point Checklist Table
+            const chkTbody = document.getElementById('r-conviction-checklist-tbody');
+            if (chkTbody && bc.checklist) {
+                chkTbody.innerHTML = bc.checklist.map((chk, idx) => {
+                    const passBadge = chk.passed
+                        ? `<span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold border border-emerald-500/40">✓ PASS</span>`
+                        : `<span class="px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 font-bold border border-rose-500/40">✗ FAIL</span>`;
+                    return `
+                        <tr class="hover:bg-dark-surface/50 transition text-xs">
+                            <td class="p-2.5 text-center text-slate-500 font-mono">${idx + 1}</td>
+                            <td class="p-2.5 font-bold text-slate-200">${chk.title}</td>
+                            <td class="p-2.5 text-slate-400 font-mono text-[11px]">${chk.category}</td>
+                            <td class="p-2.5 text-right font-mono text-cyan-300 font-bold">${chk.actual_value_str}</td>
+                            <td class="p-2.5 text-center font-mono text-slate-400 text-[11px]">${chk.benchmark_threshold_str}</td>
+                            <td class="p-2.5 text-center">${passBadge}</td>
+                            <td class="p-2.5 text-slate-300 text-[11px] font-sans">${chk.explanation}</td>
+                        </tr>
+                    `;
+                }).join('');
+            }
+        }
+
         // Bull & Bear Cases & Red Flags
         const bullContainer = document.getElementById('r-bull-cases');
         if (bullContainer) {

@@ -11,6 +11,7 @@ from rich.progress_bar import ProgressBar
 from rich import box
 from app.models.score import EmitenAnalysisReport, VerdictAction, HealthZone
 from app.models.screener import ComparisonResponse, ScreenerResponse
+from app.models.conviction import BuyZone, ConvictionTier
 
 
 console = Console()
@@ -217,6 +218,98 @@ class TerminalRenderer:
                     style="bold" if is_current else ""
                 )
             console.print(Panel(sens_table, border_style="yellow"))
+
+        # High-Conviction Buy Engine Panels
+        if report.buy_conviction:
+            bc = report.buy_conviction
+            sc = bc.scenarios
+            ps = bc.position_sizing
+            
+            # Panel 1: Margin of Safety & Buy Zone
+            zone_color = "bold green" if sc.buy_zone == BuyZone.STRONG_ACCUMULATION else ("bold yellow" if sc.buy_zone == BuyZone.MODERATE_BUY else "bold red")
+            mos_color = "bold green" if sc.margin_of_safety_pct >= 20.0 else ("bold yellow" if sc.margin_of_safety_pct >= 10.0 else "bold red")
+            
+            mos_panel = Table(title="[bold yellow]🛡️ MARGIN OF SAFETY (MoS) & TARGET AREA AKUMULASI[/bold yellow]", box=box.ROUNDED)
+            mos_panel.add_column("Current Price", justify="center")
+            mos_panel.add_column("Margin of Safety", justify="center")
+            mos_panel.add_column("Downside Risk", justify="center")
+            mos_panel.add_column("Upside Potential", justify="center")
+            mos_panel.add_column("Risk / Reward", justify="center")
+            mos_panel.add_column("Buy Zone Status", justify="center")
+            
+            mos_panel.add_row(
+                f"Rp{sc.current_price:,.0f}",
+                f"[{mos_color}]{sc.margin_of_safety_pct:+.1f}%[/{mos_color}]",
+                f"[bold red]-{sc.downside_risk_pct:.1f}%[/bold red]",
+                f"[bold green]+{sc.upside_potential_pct:.1f}%[/bold green]",
+                f"[bold cyan]{sc.risk_to_reward_ratio:.2f}x R:R[/bold cyan]",
+                f"[{zone_color}]{sc.buy_zone.value}[/{zone_color}]"
+            )
+            console.print(Panel(mos_panel, border_style="yellow", subtitle=f"[dim]{sc.buy_zone_description}[/dim]"))
+
+            # Panel 2: Multi-Scenario Targets & Position Sizing
+            strat_table = Table(title="[bold cyan]🎯 TARGET HARGA MULTI-SKENARIO & POSITION SIZING[/bold cyan]", box=box.ROUNDED)
+            strat_table.add_column("Skenario Valuasi", style="bold")
+            strat_table.add_column("Target Harga (Rp)", justify="right")
+            strat_table.add_column("Delta Potensi", justify="right")
+            strat_table.add_column("Panduan Eksekusi Trading / Investasi")
+            
+            strat_table.add_row(
+                "🐻 Bear Case (Safety Floor)",
+                f"Rp{sc.bear_case_price:,.0f}",
+                f"-{sc.downside_risk_pct:.1f}%",
+                f"Batas bawah risiko terburuk. Stop Loss level fundamental @ Rp{ps.stop_loss_invalidation:,.0f}"
+            )
+            strat_table.add_row(
+                "⚖️ Base Case (Fair Consensus)",
+                f"Rp{sc.base_case_price:,.0f}",
+                f"+{sc.upside_potential_pct:.1f}%",
+                "Target Konsensus Realistis. Area Take Profit 1 (TP 1)"
+            )
+            strat_table.add_row(
+                "🐂 Bull Case (Growth Target)",
+                f"Rp{sc.bull_case_price:,.0f}",
+                f"+{sc.bull_upside_pct:.1f}%",
+                "Skenario Ekspansi Optimis. Area Take Profit 2 (TP 2)"
+            )
+            
+            alloc_text = Text()
+            alloc_text.append(f"\n💼 Rekomendasi Alokasi Modal Portofolio: ", style="bold")
+            alloc_text.append(f"Maksimal {ps.max_portfolio_allocation_pct:.0f}% Modal\n", style="bold yellow")
+            alloc_text.append(f"  • Rationale: {ps.allocation_rationale}\n", style="dim")
+            if ps.invalidation_triggers:
+                alloc_text.append(f"  • Fundamental Invalidation Triggers:\n", style="bold red")
+                for tr in ps.invalidation_triggers:
+                    alloc_text.append(f"    ⚠ {tr}\n", style="red")
+                    
+            console.print(Panel(strat_table, border_style="cyan", subtitle=alloc_text, subtitle_align="left"))
+
+            # Panel 3: 10-Point Buy Conviction Checklist Table
+            conv_style = "bold green" if bc.conviction_tier == ConvictionTier.HIGH_CONVICTION else ("bold yellow" if bc.conviction_tier == ConvictionTier.MODERATE_CONVICTION else "bold red")
+            chk_table = Table(title=f"[bold green]📋 10-POINT INSTITUTIONAL BUY CONVICTION METER ({bc.conviction_score:.0f}% - {bc.conviction_tier.value})[/bold green]", box=box.ROUNDED)
+            chk_table.add_column("#", justify="center", width=3)
+            chk_table.add_column("Parameter Kelayakan Beli", style="bold", width=30)
+            chk_table.add_column("Kategori", width=12)
+            chk_table.add_column("Nilai Emiten", justify="right", width=22)
+            chk_table.add_column("Benchmark Min.", justify="center", width=20)
+            chk_table.add_column("Hasil Audit", justify="center", width=10)
+            chk_table.add_column("Penjelasan Ringkas")
+            
+            for idx, chk in enumerate(bc.checklist, start=1):
+                pass_label = "[bold green]✓ PASS[/bold green]" if chk.passed else "[bold red]✗ FAIL[/bold red]"
+                chk_table.add_row(
+                    str(idx),
+                    chk.title,
+                    chk.category,
+                    chk.actual_value_str,
+                    chk.benchmark_threshold_str,
+                    pass_label,
+                    chk.explanation
+                )
+                
+            summary_badge = Text()
+            summary_badge.append(f"\n{bc.summary_verdict} (Lolos: {bc.passed_checks_count}/{bc.total_checks_count} Poin Checklist)\n", style=conv_style)
+            console.print(Panel(chk_table, border_style="green", subtitle=summary_badge, subtitle_align="center"))
 
         # Insights Panel (Bull vs Bear & Green/Red Flags)
         flags_text = Text()
