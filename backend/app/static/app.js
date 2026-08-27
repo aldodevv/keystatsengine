@@ -29,6 +29,17 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentScreenerResults = [];
     let currentActiveTicker = 'BBRI';
 
+    // Candlestick Chart & Technicals State
+    let currentChartTimeframe = '1y';
+    let tvChartInstance = null;
+    let tvCandleSeries = null;
+    let tvVolumeSeries = null;
+    let tvEma20Series = null;
+    let tvSma50Series = null;
+    let showMaOverlays = true;
+    let showFundOverlays = true;
+    let cachedChartData = null;
+
     // -------------------------------------------------------------
     // Formatting Helpers (Reactive to currentCurrency)
     // -------------------------------------------------------------
@@ -422,6 +433,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function renderSingleEmiten(data) {
         if (!data) return;
 
+        // Load and render Candlestick Chart for this ticker
+        loadStockChart(data.ticker, currentChartTimeframe);
+
         const setTxt = (id, val) => {
             const el = document.getElementById(id);
             if (el && val !== undefined && val !== null) el.textContent = val;
@@ -749,6 +763,368 @@ document.addEventListener('DOMContentLoaded', () => {
             loadSingleEmiten(t);
         });
     });
+
+    // -------------------------------------------------------------
+    // 2.5 TradingView Lightweight Candlestick Chart Engine
+    // -------------------------------------------------------------
+    async function loadStockChart(ticker, timeframe = '1y') {
+        currentChartTimeframe = timeframe;
+        const container = document.getElementById('candlestick-chart-container');
+        if (!container) return;
+
+        try {
+            const resp = await fetch(`/api/v1/chart/${ticker}?timeframe=${timeframe}`);
+            if (!resp.ok) return;
+            const data = await resp.json();
+            cachedChartData = data;
+            renderTradingViewChart(data);
+            renderTechnicalStatusBar(data);
+            renderDetectedSignalsStream(data);
+        } catch (err) {
+            console.error("Error loading chart data:", err);
+        }
+    }
+
+    function renderTradingViewChart(data) {
+        const container = document.getElementById('candlestick-chart-container');
+        if (!container || !data || !data.candles || data.candles.length === 0) return;
+
+        // Cleanup previous chart instance if exists
+        if (tvChartInstance) {
+            try {
+                tvChartInstance.remove();
+            } catch (e) {}
+            tvChartInstance = null;
+        }
+
+        container.innerHTML = '';
+
+        if (typeof LightweightCharts === 'undefined') {
+            container.innerHTML = '<div class="flex items-center justify-center h-full text-slate-500 font-mono text-xs">TradingView Charts library sedang dimuat...</div>';
+            return;
+        }
+
+        const width = container.clientWidth || 800;
+        const height = container.clientHeight || 420;
+
+        tvChartInstance = LightweightCharts.createChart(container, {
+            width: width,
+            height: height,
+            layout: {
+                background: { color: '#0B0F19' },
+                textColor: '#94a3b8',
+                fontSize: 11,
+                fontFamily: "'JetBrains Mono', monospace"
+            },
+            grid: {
+                vertLines: { color: '#182234' },
+                horzLines: { color: '#182234' }
+            },
+            crosshair: {
+                mode: LightweightCharts.CrosshairMode.Normal,
+                vertLine: { color: '#38bdf8', width: 1, style: LightweightCharts.LineStyle.Dotted, labelBackgroundColor: '#0284c7' },
+                horzLine: { color: '#38bdf8', width: 1, style: LightweightCharts.LineStyle.Dotted, labelBackgroundColor: '#0284c7' }
+            },
+            timeScale: {
+                borderColor: '#233044',
+                timeVisible: true,
+                secondsVisible: false
+            },
+            rightPriceScale: {
+                borderColor: '#233044',
+                autoScale: true
+            }
+        });
+
+        // 1. Candlestick Series
+        tvCandleSeries = tvChartInstance.addCandlestickSeries({
+            upColor: '#10b981',
+            downColor: '#f43f5e',
+            borderUpColor: '#10b981',
+            borderDownColor: '#f43f5e',
+            wickUpColor: '#10b981',
+            wickDownColor: '#f43f5e'
+        });
+
+        const candlePoints = data.candles.map(c => ({
+            time: c.time,
+            open: c.open,
+            high: c.high,
+            low: c.low,
+            close: c.close
+        }));
+        tvCandleSeries.setData(candlePoints);
+
+        // 2. Volume Histogram Series
+        tvVolumeSeries = tvChartInstance.addHistogramSeries({
+            priceFormat: { type: 'volume' },
+            priceScaleId: '', // overlay
+            scaleMargins: {
+                top: 0.82,
+                bottom: 0
+            }
+        });
+
+        const volumePoints = data.candles.map(c => ({
+            time: c.time,
+            value: c.volume,
+            color: c.close >= c.open ? 'rgba(16, 185, 129, 0.4)' : 'rgba(244, 63, 94, 0.4)'
+        }));
+        tvVolumeSeries.setData(volumePoints);
+
+        // 3. Moving Average Series (EMA 20 & SMA 50)
+        if (showMaOverlays) {
+            const closes = data.candles.map(c => ({ time: c.time, close: c.close }));
+            
+            // Calculate EMA 20
+            if (closes.length >= 20) {
+                const ema20Points = [];
+                const k = 2.0 / 21.0;
+                let ema = closes[0].close;
+                for (let i = 0; i < closes.length; i++) {
+                    ema = closes[i].close * k + ema * (1 - k);
+                    if (i >= 19) {
+                        ema20Points.push({ time: closes[i].time, value: ema });
+                    }
+                }
+                tvEma20Series = tvChartInstance.addLineSeries({
+                    color: '#06b6d4',
+                    lineWidth: 1.5,
+                    title: 'EMA 20',
+                    priceLineVisible: false
+                });
+                tvEma20Series.setData(ema20Points);
+            }
+
+            // Calculate SMA 50
+            if (closes.length >= 50) {
+                const sma50Points = [];
+                for (let i = 49; i < closes.length; i++) {
+                    const sum50 = closes.slice(i - 49, i + 1).reduce((acc, v) => acc + v.close, 0);
+                    sma50Points.push({ time: closes[i].time, value: sum50 / 50.0 });
+                }
+                tvSma50Series = tvChartInstance.addLineSeries({
+                    color: '#f59e0b',
+                    lineWidth: 1.5,
+                    title: 'SMA 50',
+                    priceLineVisible: false
+                });
+                tvSma50Series.setData(sma50Points);
+            }
+        }
+
+        // 4. Fundamental Price Overlays (Target TP1, TP2, Stop Loss, Buy Zone)
+        if (showFundOverlays && data.fundamental_overlays) {
+            const fo = data.fundamental_overlays;
+            
+            // TP1: Fair Value Consensus
+            tvCandleSeries.createPriceLine({
+                price: fo.fair_value_tp1,
+                color: '#06b6d4',
+                lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: '⚖️ TP1 Fair Value'
+            });
+
+            // TP2: Bull Target
+            tvCandleSeries.createPriceLine({
+                price: fo.bull_target_tp2,
+                color: '#a855f7',
+                lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: '🐂 TP2 Bull Target'
+            });
+
+            // Bear Floor / Stop Loss
+            tvCandleSeries.createPriceLine({
+                price: fo.bear_floor_sl,
+                color: '#f43f5e',
+                lineWidth: 2,
+                lineStyle: LightweightCharts.LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: '🐻 Bear Floor SL'
+            });
+
+            // Strong Accumulation Buy Area
+            tvCandleSeries.createPriceLine({
+                price: fo.accumulation_zone_top,
+                color: '#10b981',
+                lineWidth: 1.5,
+                lineStyle: LightweightCharts.LineStyle.Dotted,
+                axisLabelVisible: true,
+                title: '🟢 Buy Accum Area'
+            });
+        }
+
+        // 5. Detected Technical Signal Markers (Breakout, Gap, RSI, etc.)
+        if (data.signals && data.signals.length > 0) {
+            const markers = data.signals.map(s => ({
+                time: s.date,
+                position: s.position === 'aboveBar' ? 'aboveBar' : 'belowBar',
+                color: s.color || '#10b981',
+                shape: s.shape === 'arrowDown' ? 'arrowDown' : (s.shape === 'circle' ? 'circle' : 'arrowUp'),
+                text: s.title
+            }));
+            tvCandleSeries.setMarkers(markers);
+        }
+
+        // 6. Interactive Crosshair Hover Tooltip
+        tvChartInstance.subscribeCrosshairMove(param => {
+            const legTime = document.getElementById('leg-time');
+            const legOpen = document.getElementById('leg-open');
+            const legHigh = document.getElementById('leg-high');
+            const legLow = document.getElementById('leg-low');
+            const legClose = document.getElementById('leg-close');
+            const legVol = document.getElementById('leg-vol');
+
+            if (!param || !param.time || !param.seriesData) {
+                if (data.candles.length > 0) {
+                    const last = data.candles[data.candles.length - 1];
+                    if (legTime) legTime.textContent = last.time;
+                    if (legOpen) legOpen.textContent = formatPrice(last.open, false);
+                    if (legHigh) legHigh.textContent = formatPrice(last.high, false);
+                    if (legLow) legLow.textContent = formatPrice(last.low, false);
+                    if (legClose) legClose.textContent = formatPrice(last.close, false);
+                    if (legVol) legVol.textContent = (last.volume / 1e6).toFixed(1) + 'M';
+                }
+                return;
+            }
+
+            const candleData = param.seriesData.get(tvCandleSeries);
+            const volData = param.seriesData.get(tvVolumeSeries);
+
+            if (candleData) {
+                if (legTime) legTime.textContent = param.time;
+                if (legOpen) legOpen.textContent = formatPrice(candleData.open, false);
+                if (legHigh) legHigh.textContent = formatPrice(candleData.high, false);
+                if (legLow) legLow.textContent = formatPrice(candleData.low, false);
+                if (legClose) legClose.textContent = formatPrice(candleData.close, false);
+            }
+            if (volData && legVol) {
+                legVol.textContent = (volData.value / 1e6).toFixed(1) + 'M';
+            }
+        });
+
+        // Set initial legend state
+        const legTicker = document.getElementById('leg-ticker');
+        if (legTicker) legTicker.textContent = `${data.ticker}.JK`;
+        if (data.candles.length > 0) {
+            const last = data.candles[data.candles.length - 1];
+            const legTime = document.getElementById('leg-time');
+            const legOpen = document.getElementById('leg-open');
+            const legHigh = document.getElementById('leg-high');
+            const legLow = document.getElementById('leg-low');
+            const legClose = document.getElementById('leg-close');
+            const legVol = document.getElementById('leg-vol');
+            if (legTime) legTime.textContent = last.time;
+            if (legOpen) legOpen.textContent = formatPrice(last.open, false);
+            if (legHigh) legHigh.textContent = formatPrice(last.high, false);
+            if (legLow) legLow.textContent = formatPrice(last.low, false);
+            if (legClose) legClose.textContent = formatPrice(last.close, false);
+            if (legVol) legVol.textContent = (last.volume / 1e6).toFixed(1) + 'M';
+        }
+
+        // Responsive resize
+        window.addEventListener('resize', () => {
+            if (tvChartInstance && container) {
+                tvChartInstance.applyOptions({
+                    width: container.clientWidth
+                });
+            }
+        });
+    }
+
+    function renderTechnicalStatusBar(data) {
+        if (!data || !data.indicators) return;
+        const ind = data.indicators;
+        const setTxt = (id, val) => {
+            const el = document.getElementById(id);
+            if (el && val !== undefined) el.textContent = val;
+        };
+
+        setTxt('t-trend-summary', ind.trend_summary);
+        setTxt('t-rsi-val', ind.rsi_14 !== null ? `${ind.rsi_14} (${ind.momentum_summary.split(' ')[0]})` : '-');
+        
+        const emaStr = ind.ema_20 ? formatPrice(ind.ema_20, false) : '-';
+        const smaStr = ind.sma_50 ? formatPrice(ind.sma_50, false) : '-';
+        setTxt('t-ma-val', `Rp ${emaStr} / ${smaStr}`);
+
+        // Support & Resistance
+        const supports = (data.support_resistance || []).filter(s => s.kind === 'SUPPORT');
+        const resists = (data.support_resistance || []).filter(s => s.kind === 'RESISTANCE');
+        
+        const nearestSupp = supports.length > 0 ? supports[supports.length - 1].price : (data.current_price * 0.95);
+        const nearestRes = resists.length > 0 ? resists[0].price : (data.current_price * 1.05);
+
+        setTxt('t-support-val', formatPrice(nearestSupp));
+        setTxt('t-resist-val', formatPrice(nearestRes));
+        setTxt('t-signals-count', `${(data.signals || []).length} Sinyal Pola`);
+    }
+
+    function renderDetectedSignalsStream(data) {
+        const streamList = document.getElementById('signals-stream-list');
+        if (!streamList) return;
+
+        const signals = data.signals || [];
+        if (signals.length === 0) {
+            streamList.innerHTML = `<div class="col-span-full py-2 text-center text-slate-500 text-xs font-mono">Belum ada sinyal teknikal ekstrim pada periode ini.</div>`;
+            return;
+        }
+
+        streamList.innerHTML = signals.slice(-6).reverse().map(s => {
+            const isBullish = s.signal_type.includes('BUY') || s.signal_type.includes('UP') || s.signal_type.includes('GOLDEN') || s.signal_type.includes('OVERSOLD');
+            const borderCol = isBullish ? 'border-emerald-500/30 bg-emerald-950/20' : 'border-rose-500/30 bg-rose-950/20';
+            const textCol = isBullish ? 'text-emerald-400' : 'text-rose-400';
+            
+            return `
+                <div class="p-3 rounded-xl border ${borderCol} space-y-1 text-xs">
+                    <div class="flex items-center justify-between">
+                        <span class="font-bold ${textCol} font-mono">${s.title}</span>
+                        <span class="text-[10px] text-slate-400 font-mono">${s.date}</span>
+                    </div>
+                    <p class="text-[11px] text-slate-300 font-sans leading-snug">${s.description}</p>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Timeframe selector button listeners
+    document.querySelectorAll('.tf-btn').forEach(btn => {
+        btn.addEventListener('click', function() {
+            document.querySelectorAll('.tf-btn').forEach(b => {
+                b.className = 'tf-btn px-2.5 py-1 rounded-md text-slate-400 hover:text-white transition text-xs';
+            });
+            this.className = 'tf-btn px-2.5 py-1 rounded-md bg-brand-600 text-white font-bold transition text-xs';
+            const tf = this.dataset.tf;
+            loadStockChart(currentActiveTicker, tf);
+        });
+    });
+
+    // Toggle Moving Averages overlay
+    const toggleMaBtn = document.getElementById('toggle-ma-btn');
+    if (toggleMaBtn) {
+        toggleMaBtn.addEventListener('click', () => {
+            showMaOverlays = !showMaOverlays;
+            toggleMaBtn.className = showMaOverlays
+                ? "px-2.5 py-1.5 rounded-lg bg-dark-bg hover:bg-dark-surface border border-dark-border text-slate-300 text-xs font-mono flex items-center gap-1.5 transition"
+                : "px-2.5 py-1.5 rounded-lg bg-dark-bg/40 opacity-50 border border-dark-border text-slate-500 text-xs font-mono flex items-center gap-1.5 transition";
+            if (cachedChartData) renderTradingViewChart(cachedChartData);
+        });
+    }
+
+    // Toggle Fundamental Target overlay
+    const toggleFundBtn = document.getElementById('toggle-fund-btn');
+    if (toggleFundBtn) {
+        toggleFundBtn.addEventListener('click', () => {
+            showFundOverlays = !showFundOverlays;
+            toggleFundBtn.className = showFundOverlays
+                ? "px-2.5 py-1.5 rounded-lg bg-brand-500/20 hover:bg-brand-500/30 border border-brand-500/40 text-brand-300 text-xs font-mono flex items-center gap-1.5 transition"
+                : "px-2.5 py-1.5 rounded-lg bg-dark-bg/40 opacity-50 border border-dark-border text-slate-500 text-xs font-mono flex items-center gap-1.5 transition";
+            if (cachedChartData) renderTradingViewChart(cachedChartData);
+        });
+    }
 
     // -------------------------------------------------------------
     // 3. Peer Comparison Logic

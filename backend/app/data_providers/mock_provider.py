@@ -4,8 +4,11 @@ KeyStats, multi-year historical periods (2021-2024), and sector metrics for high
 """
 
 from typing import Optional, List, Dict
+from datetime import datetime, timedelta
+import math
 from app.data_providers.base import BaseDataProvider
 from app.models.keystats import RawKeyStats, FinancialPeriod, BankSpecificMetrics
+from app.models.chart import CandleDataPoint
 
 
 class MockDataProvider(BaseDataProvider):
@@ -35,6 +38,79 @@ class MockDataProvider(BaseDataProvider):
             v for k, v in self._dataset.items()
             if q in k or q in v.name.upper() or q in v.sector.upper()
         ]
+
+    def get_historical_ohlcv(self, ticker: str, timeframe: str = "1y") -> List[CandleDataPoint]:
+        clean_ticker = ticker.upper().replace(".JK", "").strip()
+        ks = self._dataset.get(clean_ticker)
+        current_price = ks.current_price if ks else 3000.0
+        
+        days_map = {
+            "1mo": 25,
+            "3mo": 65,
+            "6mo": 130,
+            "1y": 250,
+            "5y": 500
+        }
+        num_days = days_map.get(timeframe.lower(), 250)
+        
+        # Deterministic generation backwards from current date & current_price
+        end_date = datetime.now()
+        seed_offset = sum(ord(c) for c in clean_ticker)
+        
+        candles: List[CandleDataPoint] = []
+        
+        # Build price path with realistic sine waves, volatility, and trend
+        prices: List[float] = [current_price]
+        curr = current_price
+        
+        for i in range(1, num_days):
+            # Deterministic wave + noise
+            wave = math.sin((i + seed_offset) * 0.15) * 0.012
+            noise = math.cos((i * 7 + seed_offset) * 0.25) * 0.015
+            drift = -0.0003  # slight upward drift forward (so backward is downward)
+            
+            # Occasional gap simulation
+            gap = 0.0
+            if (i + seed_offset) % 37 == 0:
+                gap = 0.025 * (1 if math.sin(i) > 0 else -1)
+                
+            pct_change = wave + noise + drift + gap
+            curr = curr * (1.0 - pct_change)  # going backward
+            prices.append(max(curr, 50.0))
+            
+        prices.reverse()  # now prices are chronological
+        
+        # Generate OHLCV candles
+        base_vol = int(ks.market_cap / 1e8) if ks else 5000000
+        for i, p_close in enumerate(prices):
+            # Calculate date (skipping weekends)
+            day_delta = num_days - 1 - i
+            # rough trading day mapping
+            d = end_date - timedelta(days=int(day_delta * 1.45))
+            date_str = d.strftime("%Y-%m-%d")
+            
+            intra_vol = 0.015
+            p_open = p_close * (1.0 + math.sin(i * 3 + seed_offset) * intra_vol * 0.5)
+            p_high = max(p_open, p_close) * (1.0 + abs(math.cos(i * 5 + seed_offset)) * intra_vol)
+            p_low = min(p_open, p_close) * (1.0 - abs(math.sin(i * 4 + seed_offset)) * intra_vol)
+            
+            # Volume with breakout spike
+            vol_multiplier = 1.0 + abs(math.sin(i * 2 + seed_offset)) * 0.8
+            if (i + seed_offset) % 45 == 0:
+                vol_multiplier *= 2.8  # Volume breakout spike
+            
+            vol = int(base_vol * vol_multiplier)
+            
+            candles.append(CandleDataPoint(
+                time=date_str,
+                open=round(p_open, 2),
+                high=round(p_high, 2),
+                low=round(p_low, 2),
+                close=round(p_close, 2),
+                volume=vol
+            ))
+            
+        return candles
 
     def _init_dataset(self) -> Dict[str, RawKeyStats]:
         data: Dict[str, RawKeyStats] = {}

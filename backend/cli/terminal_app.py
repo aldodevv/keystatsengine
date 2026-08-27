@@ -12,6 +12,7 @@ from rich import box
 from app.models.score import EmitenAnalysisReport, VerdictAction, HealthZone
 from app.models.screener import ComparisonResponse, ScreenerResponse
 from app.models.conviction import BuyZone, ConvictionTier
+from app.models.chart import ChartResponse
 
 
 console = Console()
@@ -601,5 +602,90 @@ class TerminalRenderer:
         content.append(f"Waktu Update Kurs: {conv.last_updated}", style="dim italic")
 
         console.print(Panel(content, title="[bold cyan]💱 Hasil Konversi Mata Uang[/bold cyan]", border_style="cyan", box=box.ROUNDED))
+
+    @staticmethod
+    def render_chart_technicals(resp: ChartResponse):
+        """Render CLI Technical Analysis, Candlestick summary, Gaps, and Breakout signals."""
+        header_text = Text()
+        header_text.append(f"📊 {resp.ticker} - {resp.name}\n", style="bold white")
+        header_text.append(f"Timeframe: {resp.timeframe.upper()} | Harga Terakhir: ", style="dim")
+        header_text.append(f"Rp{resp.current_price:,.0f}\n", style="bold green")
+        header_text.append(f"Total Candlestick: {len(resp.candles)} bar harian", style="dim")
+        
+        console.print(Panel(header_text, title="[bold cyan]🕯️ TECHNICAL & CANDLESTICK ANALYSIS ENGINE[/bold cyan]", border_style="cyan", box=box.ROUNDED))
+
+        # 1. Technical Indicators Table
+        ind = resp.indicators
+        ind_table = Table(title="[bold yellow]📈 INDIKATOR TREN & MOMENTUM (EMA, SMA, RSI)[/bold yellow]", box=box.ROUNDED)
+        ind_table.add_column("Indikator", style="bold")
+        ind_table.add_column("Nilai Parameter", justify="right")
+        ind_table.add_column("Status / Interpretasi")
+
+        ind_table.add_row("Status Tren Utama", "-", f"[bold cyan]{ind.trend_summary}[/bold cyan]")
+        ind_table.add_row("RSI (14-Period)", f"{ind.rsi_14}" if ind.rsi_14 else "-", f"[bold yellow]{ind.momentum_summary}[/bold yellow]")
+        ind_table.add_row("EMA 20 (Short-term)", f"Rp{ind.ema_20:,.0f}" if ind.ema_20 else "-", "Support / Resisten Dinamis 20 Hari")
+        ind_table.add_row("SMA 50 (Medium-term)", f"Rp{ind.sma_50:,.0f}" if ind.sma_50 else "-", "Garis Arah Tren Menengah")
+        ind_table.add_row("SMA 200 (Long-term)", f"Rp{ind.sma_200:,.0f}" if ind.sma_200 else "-", "Batas Mayor Bullish / Bearish Institusional")
+
+        console.print(ind_table)
+
+        # 2. Fundamental Price Overlays Table
+        if resp.fundamental_overlays:
+            fo = resp.fundamental_overlays
+            fund_table = Table(title="[bold green]🎯 CONFLUENCE: TARGET FUNDAMENTAL DI ATAS GRAFIK[/bold green]", box=box.ROUNDED)
+            fund_table.add_column("Level Target Fundamental", style="bold")
+            fund_table.add_column("Level Harga (Rp)", justify="right")
+            fund_table.add_column("Jarak dari Harga Pasar", justify="right")
+            fund_table.add_column("Fungsi di Chart")
+
+            delta_tp1 = ((fo.fair_value_tp1 - resp.current_price) / resp.current_price) * 100
+            delta_tp2 = ((fo.bull_target_tp2 - resp.current_price) / resp.current_price) * 100
+            delta_sl = ((fo.bear_floor_sl - resp.current_price) / resp.current_price) * 100
+
+            fund_table.add_row("🟢 Strong Buy Accumulation", f"Rp{fo.accumulation_zone_top:,.0f}", "-", "Batas Atas Area Diskon Akumulasi")
+            fund_table.add_row("⚖️ Take Profit 1 (Fair Value)", f"Rp{fo.fair_value_tp1:,.0f}", f"[bold green]{delta_tp1:+.1f}%[/bold green]", "Target Konsensus Nilai Wajar Realistis")
+            fund_table.add_row("🐂 Take Profit 2 (Bull Target)", f"Rp{fo.bull_target_tp2:,.0f}", f"[bold green]{delta_tp2:+.1f}%[/bold green]", "Target Ekspansi Skenario Bullish")
+            fund_table.add_row("🐻 Stop Loss (Bear Floor)", f"Rp{fo.bear_floor_sl:,.0f}", f"[bold red]{delta_sl:+.1f}%[/bold red]", "Batas Bawah Safety Support / Invalidation")
+
+            console.print(fund_table)
+
+        # 3. Support & Resistance Levels
+        if resp.support_resistance:
+            sr_table = Table(title="[bold cyan]🧱 AREA SUPPORT & RESISTEN KUNCI (SWING EXTREMA)[/bold cyan]", box=box.ROUNDED)
+            sr_table.add_column("Jenis Level", justify="center")
+            sr_table.add_column("Harga (IDR)", justify="right")
+            sr_table.add_column("Kekuatan Uji", justify="center")
+            sr_table.add_column("Keterangan")
+
+            for sr in resp.support_resistance:
+                col = "bold green" if sr.kind == "SUPPORT" else "bold red"
+                sr_table.add_row(
+                    f"[{col}]{sr.kind}[/{col}]",
+                    f"Rp{sr.price:,.0f}",
+                    f"{sr.strength}x Touch",
+                    sr.description
+                )
+            console.print(sr_table)
+
+        # 4. Detected Signals Stream (Breakouts, Gaps, etc.)
+        if resp.signals:
+            sig_table = Table(title="[bold purple]⚡ POLA SINYAL TEKNIKAL TERDETEKSI (BREAKOUT / GAP)[/bold purple]", box=box.ROUNDED)
+            sig_table.add_column("Tanggal", justify="center")
+            sig_table.add_column("Sinyal Pola", style="bold")
+            sig_table.add_column("Harga Event", justify="right")
+            sig_table.add_column("Penjelasan Algoritmik")
+
+            for s in reversed(resp.signals[-8:]):
+                col = "green" if ("BUY" in s.signal_type or "UP" in s.signal_type or "GOLDEN" in s.signal_type) else "red"
+                sig_table.add_row(
+                    s.date,
+                    f"[{col}]{s.title}[/{col}]",
+                    f"Rp{s.price:,.0f}",
+                    s.description
+                )
+            console.print(sig_table)
+        else:
+            console.print("[dim]Belum ada sinyal teknikal ekstrim terdeteksi pada rentang waktu ini.[/dim]")
+
 
 

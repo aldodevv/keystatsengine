@@ -211,6 +211,26 @@ def convert_currency(
     TerminalRenderer.render_currency_conversion(conv_resp)
 
 
+@app.command(name="chart")
+def chart_command(
+    ticker: str = typer.Argument(..., help="IDX Stock Ticker (e.g. BBRI, BBCA, ASII, ADRO, UNTR)"),
+    timeframe: str = typer.Option("1y", "--timeframe", "-t", help="Timeframe: 1mo, 3mo, 6mo, 1y, 5y")
+):
+    """View technical candlestick analysis, breakouts, gaps, support/resistance, and fundamental target overlay."""
+    from app.services.chart_service import ChartService
+    chart_service = ChartService(emiten_service)
+    
+    with console.status(f"[bold cyan]Scanning Technical Chart & Patterns for {ticker.upper()} ({timeframe.upper()})..."):
+        chart_resp = chart_service.get_chart_data(ticker, timeframe=timeframe)
+        
+    if not chart_resp:
+        console.print(f"[bold red]❌ Error: Data chart untuk '{ticker.upper()}' tidak ditemukan.[/bold red]")
+        raise typer.Exit(code=1)
+        
+    TerminalRenderer.render_chart_technicals(chart_resp)
+
+
 if __name__ == "__main__":
     app()
+
 

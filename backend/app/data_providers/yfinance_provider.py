@@ -5,9 +5,11 @@ Fetches real-time market data, financials, balance sheets, and cash flows with f
 
 from typing import Optional, List
 import concurrent.futures
+import yfinance as yf
 from app.data_providers.base import BaseDataProvider
 from app.data_providers.mock_provider import MockDataProvider
 from app.models.keystats import RawKeyStats, FinancialPeriod, BankSpecificMetrics
+from app.models.chart import CandleDataPoint
 
 
 class YFinanceProvider(BaseDataProvider):
@@ -207,3 +209,61 @@ class YFinanceProvider(BaseDataProvider):
             dividends_paid=divs,
             shares_outstanding=shares
         )
+
+    def get_historical_ohlcv(self, ticker: str, timeframe: str = "1y") -> List[CandleDataPoint]:
+        """Fetches live daily OHLCV candles from Yahoo Finance with mock fallback."""
+        clean_ticker = ticker.upper().strip()
+        formatted = f"{clean_ticker}.JK" if not clean_ticker.endswith(".JK") else clean_ticker
+        
+        # Valid yfinance period mapping
+        period_map = {
+            "1mo": "1mo",
+            "3mo": "3mo",
+            "6mo": "6mo",
+            "1y": "1y",
+            "5y": "5y"
+        }
+        period = period_map.get(timeframe.lower(), "1y")
+        interval = "1d" if period != "5y" else "1wk"
+        
+        try:
+            stock = yf.Ticker(formatted)
+            df = stock.history(period=period, interval=interval)
+            
+            if df is not None and not df.empty and len(df) > 5:
+                candles: List[CandleDataPoint] = []
+                for idx, row in df.iterrows():
+                    date_str = str(idx)[:10]
+                    try:
+                        val_open = row['Open'] if 'Open' in row else 0.0
+                        val_high = row['High'] if 'High' in row else 0.0
+                        val_low = row['Low'] if 'Low' in row else 0.0
+                        val_close = row['Close'] if 'Close' in row else 0.0
+                        val_vol = row['Volume'] if 'Volume' in row else 0
+                        
+                        o = float(val_open) if val_open is not None else 0.0
+                        h = float(val_high) if val_high is not None else 0.0
+                        l = float(val_low) if val_low is not None else 0.0
+                        c = float(val_close) if val_close is not None else 0.0
+                        v = int(float(val_vol)) if val_vol is not None else 0
+                    except Exception:
+                        continue
+                    
+                    if o > 0 and c > 0:
+                        candles.append(CandleDataPoint(
+                            time=date_str,
+                            open=round(o, 2),
+                            high=round(h, 2),
+                            low=round(l, 2),
+                            close=round(c, 2),
+                            volume=v
+                        ))
+                if len(candles) >= 5:
+                    return candles
+        except Exception:
+            pass
+            
+        # Fallback to mock provider
+        if self.fallback_provider:
+            return self.fallback_provider.get_historical_ohlcv(clean_ticker.replace(".JK", ""), timeframe)
+        return []

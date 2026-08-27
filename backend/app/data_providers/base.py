@@ -5,6 +5,7 @@ Base Data Provider Interface for IDX Keystats and Financial Statements.
 from abc import ABC, abstractmethod
 from typing import Optional, List
 from app.models.keystats import RawKeyStats
+from app.models.chart import CandleDataPoint
 
 
 class BaseDataProvider(ABC):
@@ -27,3 +28,9 @@ class BaseDataProvider(ABC):
     def search_tickers(self, query: str) -> List[RawKeyStats]:
         """Searches tickers by code or name."""
         pass
+
+    @abstractmethod
+    def get_historical_ohlcv(self, ticker: str, timeframe: str = "1y") -> List[CandleDataPoint]:
+        """Fetches historical daily OHLCV candlestick data."""
+        pass
+
