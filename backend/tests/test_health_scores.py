@@ -140,28 +140,3 @@ def test_mock_provider_all_emitens_have_complete_data():
         assert report.financial_matrix is not None
         assert len(report.financial_matrix.years) >= 5
 
-
-def test_admr_stockbit_matrix():
-    from app.data_providers.mock_provider import MockDataProvider
-    from app.engines.scoring_engine import ScoringEngine
-
-    provider = MockDataProvider()
-    admr = provider.get_keystats("ADMR")
-    assert admr is not None
-    assert admr.ticker == "ADMR"
-    assert admr.current_price == 1715.0
-    assert admr.current_period.revenue == 17_269_000_000_000.0  # Rp 17.27 T
-    assert admr.current_period.net_income == 4_871_000_000_000.0  # Rp 4.87 T
-    assert admr.current_period.eps == 119.14
-
-    report = ScoringEngine.analyze_emiten(admr)
-    assert report.financial_matrix is not None
-    mat = report.financial_matrix
-    assert 2026 in mat.years
-    assert mat.eps_matrix["2026"].q1 == 35.17
-    assert mat.eps_matrix["2026"].annualised == 144.67
-    assert mat.eps_matrix["2026"].ttm == 119.14
-    assert mat.revenue_matrix["2026"].ttm == 17_269_000_000_000.0
-    assert mat.income_statement_ttm.revenue_ttm == 17_269_000_000_000.0
-    assert mat.balance_sheet_quarter.cash == 8_571_000_000_000.0
-

@@ -18,7 +18,7 @@ class EmitenService:
         self,
         ticker: str,
         override_price: Optional[float] = None,
-        force_live: bool = False
+        force_live: bool = True
     ) -> Optional[EmitenAnalysisReport]:
         if hasattr(self.provider, "get_keystats"):
             raw = self.provider.get_keystats(ticker, override_price=override_price, force_live=force_live)
