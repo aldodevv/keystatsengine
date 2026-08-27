@@ -85,6 +85,10 @@
                     <span>📊</span>
                     <span>Ringkasan & Top Picks</span>
                 </button>
+                <button id="tab-calendar" class="nav-tab px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 text-slate-400 hover:text-white shrink-0">
+                    <span>📅</span>
+                    <span>Kalender Agenda</span>
+                </button>
                 <button id="tab-single" class="nav-tab px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 text-slate-400 hover:text-white shrink-0">
                     <span>🔍</span>
                     <span>Single Emiten</span>
@@ -289,6 +293,210 @@
                         </tbody>
                     </table>
                 </div>
+            </div>
+        </section>
+
+
+        <!-- ========================================================================= -->
+        <!-- TAB CALENDAR: KALENDER AGENDA MAKRO & KATALIS PASAR SAHAM IDX             -->
+        <!-- ========================================================================= -->
+        <section id="section-calendar" class="tab-content hidden space-y-6 sm:space-y-8">
+            
+            <!-- Hero Banner (Calendar & Catalysts) -->
+            <div class="bg-gradient-to-r from-blue-950/40 via-dark-card to-indigo-950/30 border border-blue-500/25 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xl relative overflow-hidden">
+                <div class="absolute -top-12 -right-12 w-64 h-64 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
+                <div class="relative z-10 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+                    <div class="space-y-1.5">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="px-2.5 py-0.5 text-[10px] font-mono font-bold bg-blue-500/15 text-blue-400 border border-blue-500/30 rounded-full">MACRO & CORPORATE CATALYSTS</span>
+                            <span id="calendar-generated-date" class="text-xs text-slate-400 font-mono">Live Timeline</span>
+                        </div>
+                        <h1 class="text-xl sm:text-2xl lg:text-3xl font-extrabold text-white tracking-tight flex items-center gap-2.5">
+                            <span>📅</span>
+                            <span>Kalender Agenda Makro & Katalis Pasar IDX</span>
+                        </h1>
+                        <p class="text-xs sm:text-sm text-slate-300 max-w-2xl leading-relaxed">
+                            Pantau jadwal agenda ekonomi domestik (BI, BPS, IDX) & global/US (The Fed, CPI, NFP, OPEC, China) serta peta transmisi fundamental & saham-saham spesifik yang terdampak.
+                        </p>
+                    </div>
+
+                    <!-- Quick Action Tools -->
+                    <div class="flex items-center gap-2.5 shrink-0 w-full md:w-auto">
+                        <button id="btn-open-sector-sensitivity" class="flex-1 md:flex-initial px-3.5 py-2 rounded-xl bg-dark-surface/80 hover:bg-slate-700 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 text-xs font-semibold transition flex items-center justify-center gap-2 shadow-sm">
+                            <span>📊</span>
+                            <span>Matriks Sensitivitas Sektor</span>
+                        </button>
+                        <button id="btn-refresh-calendar" class="p-2 rounded-xl bg-dark-surface hover:bg-dark-border text-slate-300 hover:text-white border border-dark-border transition shadow-sm" title="Refresh Agenda Calendar">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- KPI Overview Stats Grid -->
+            <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+                <!-- High Impact Events -->
+                <div class="bg-dark-card border border-rose-500/30 rounded-2xl p-4 sm:p-5 relative overflow-hidden shadow-lg group hover:border-rose-400 transition">
+                    <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                        <span class="font-medium">Dampak Tinggi (High Impact)</span>
+                        <span class="text-rose-400 font-bold text-sm">🔴 3★</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="calendar-kpi-high-impact" class="text-2xl sm:text-3xl font-extrabold text-rose-400 font-mono">-</span>
+                        <span class="text-xs text-slate-400">Agenda Krusial</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Penggerak volatilitas pasar utama</p>
+                </div>
+
+                <!-- US & Global Macro Events -->
+                <div class="bg-dark-card border border-blue-500/30 rounded-2xl p-4 sm:p-5 relative overflow-hidden shadow-lg group hover:border-blue-400 transition">
+                    <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                        <span class="font-medium">Agenda US & Global</span>
+                        <span class="text-blue-400 font-bold text-sm">🇺🇸 🌐</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="calendar-kpi-us-global" class="text-2xl sm:text-3xl font-extrabold text-blue-400 font-mono">-</span>
+                        <span class="text-xs text-slate-400">Agenda Global</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Fed FOMC, CPI, NFP, OPEC, China</p>
+                </div>
+
+                <!-- Domestic Indonesia Events -->
+                <div class="bg-dark-card border border-emerald-500/30 rounded-2xl p-4 sm:p-5 relative overflow-hidden shadow-lg group hover:border-emerald-400 transition">
+                    <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                        <span class="font-medium">Agenda Domestik RI</span>
+                        <span class="text-emerald-400 font-bold text-sm">🇮🇩 🏦</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="calendar-kpi-domestic" class="text-2xl sm:text-3xl font-extrabold text-emerald-400 font-mono">-</span>
+                        <span class="text-xs text-slate-400">Agenda Nasional</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">BI-Rate, BPS Inflasi, PDB, Dividen</p>
+                </div>
+
+                <!-- Total Affected Stocks -->
+                <div class="bg-dark-card border border-amber-500/30 rounded-2xl p-4 sm:p-5 relative overflow-hidden shadow-lg group hover:border-amber-400 transition">
+                    <div class="flex items-center justify-between text-xs text-slate-400 mb-1.5">
+                        <span class="font-medium">Saham Terpetakan</span>
+                        <span class="text-amber-400 font-bold text-sm">🎯 📈</span>
+                    </div>
+                    <div class="flex items-baseline gap-2">
+                        <span id="calendar-kpi-stocks" class="text-2xl sm:text-3xl font-extrabold text-amber-400 font-mono">-</span>
+                        <span class="text-xs text-slate-400">Emiten IDX</span>
+                    </div>
+                    <p class="text-[11px] text-slate-400 mt-1">Memiliki transmisi sensitivitas</p>
+                </div>
+            </div>
+
+            <!-- Top 3 Upcoming Crucial Highlights Banner -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6 shadow-xl space-y-4">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-dark-border pb-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping"></span>
+                        <h2 class="text-base sm:text-lg font-bold text-white tracking-tight flex items-center gap-2">
+                            <span>🔥</span>
+                            <span>Katalis Pasar Terdekat Paling Krusial</span>
+                        </h2>
+                    </div>
+                    <span class="text-xs text-slate-400 font-mono">Fokus Perhatian Pelaku Pasar</span>
+                </div>
+
+                <!-- Highlight Cards Grid -->
+                <div id="calendar-highlights-container" class="grid grid-cols-1 md:grid-cols-3 gap-3.5 sm:gap-4">
+                    <div class="p-6 text-center text-slate-500 col-span-3 font-mono text-xs">Memuat sorotan agenda terdekat...</div>
+                </div>
+            </div>
+
+            <!-- Interactive Search & Multi-Level Filters -->
+            <div class="bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6 shadow-xl space-y-4">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                    <!-- Live Search Box -->
+                    <div class="flex-1 relative">
+                        <div class="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-400">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                        </div>
+                        <input type="text" id="calendar-search-input" placeholder="Cari judul agenda, negara, atau kode ticker (misal: BBCA, ADRO, FOMC, CPO, Dividen)..." class="w-full bg-dark-bg border border-dark-border rounded-xl pl-10 pr-24 py-2.5 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 font-mono tracking-wide">
+                        <button id="calendar-clear-search-btn" class="hidden absolute right-2.5 top-1/2 -translate-y-1/2 px-2 py-0.5 rounded text-[11px] bg-dark-surface text-slate-400 hover:text-white transition">
+                            Hapus
+                        </button>
+                    </div>
+
+                    <!-- Scope / Region Switcher -->
+                    <div class="flex items-center bg-dark-bg border border-dark-border p-1 rounded-xl shrink-0 overflow-x-auto no-scrollbar">
+                        <button class="cal-scope-btn active px-3 py-1.5 rounded-lg text-xs font-semibold transition text-white bg-blue-600 shadow-sm shrink-0" data-scope="ALL">
+                            <span>🌐 Semua</span>
+                        </button>
+                        <button class="cal-scope-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white shrink-0" data-scope="INDONESIA">
+                            <span>🇮🇩 Domestik</span>
+                        </button>
+                        <button class="cal-scope-btn px-3 py-1.5 rounded-lg text-xs font-semibold transition text-slate-400 hover:text-white shrink-0" data-scope="US_GLOBAL">
+                            <span>🇺🇸 US & Global</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Secondary Filter Pills (Categories, Impact Level, Time Horizon) -->
+                <div class="space-y-3 pt-2 border-t border-dark-border/60">
+                    <!-- Categories -->
+                    <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar pb-1">
+                        <span class="text-[11px] font-mono text-slate-400 shrink-0 mr-1 uppercase">Kategori:</span>
+                        <button class="cal-cat-btn active px-2.5 py-1 rounded-lg text-xs font-medium bg-blue-600 text-white transition shrink-0" data-category="ALL">Semua Kategori</button>
+                        <button class="cal-cat-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-category="INTEREST_RATE">🏦 Suku Bunga</button>
+                        <button class="cal-cat-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-category="INFLATION_GDP">📈 Inflasi & GDP</button>
+                        <button class="cal-cat-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-category="COMMODITY_ENERGY">🛢️ Komoditas & Energi</button>
+                        <button class="cal-cat-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-category="DIVIDEND">💰 Kalender Dividen</button>
+                        <button class="cal-cat-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-category="CORPORATE_ACTION">🏢 RUPS & Lapkeu</button>
+                        <button class="cal-cat-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-category="INDEX_REBALANCE">⚖️ Rebalancing Indeks</button>
+                        <button class="cal-cat-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition shrink-0" data-category="TRADE_MACRO">📊 Neraca & Devisa</button>
+                    </div>
+
+                    <!-- Impact Level & Time Horizon Row -->
+                    <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="text-[11px] font-mono text-slate-400 mr-1 uppercase">Dampak:</span>
+                            <button class="cal-impact-btn active px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-surface border border-slate-600 text-white transition" data-impact="ALL">Semua Tingkat</button>
+                            <button class="cal-impact-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-rose-300 hover:text-rose-200 transition" data-impact="HIGH">🔴 Tinggi (3★)</button>
+                            <button class="cal-impact-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-amber-300 hover:text-amber-200 transition" data-impact="MEDIUM">🟡 Sedang (2★)</button>
+                            <button class="cal-impact-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-emerald-300 hover:text-emerald-200 transition" data-impact="LOW">🟢 Ringan (1★)</button>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-1.5">
+                            <span class="text-[11px] font-mono text-slate-400 mr-1 uppercase">Waktu:</span>
+                            <button class="cal-time-btn active px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-surface border border-slate-600 text-white transition" data-time="ALL">Semua</button>
+                            <button class="cal-time-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition" data-time="THIS_WEEK">🚨 Minggu Ini (≤7 Hari)</button>
+                            <button class="cal-time-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition" data-time="THIS_MONTH">📅 Bulan Ini</button>
+                            <button class="cal-time-btn px-2.5 py-1 rounded-lg text-xs font-medium bg-dark-bg border border-dark-border text-slate-300 hover:text-white transition" data-time="UPCOMING">⏳ Akan Datang</button>
+                            <button id="calendar-reset-all-filters-btn" class="ml-2 px-2.5 py-1 rounded-lg text-xs font-mono text-slate-400 hover:text-white bg-dark-surface hover:bg-dark-border transition">↺ Reset</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Active Filter Status Indicator -->
+            <div id="calendar-filter-status" class="flex items-center justify-between text-xs text-slate-400 font-mono px-1">
+                <span>Menampilkan <strong id="calendar-count-display" class="text-white">0</strong> agenda terpilih</span>
+                <span class="text-[11px] text-slate-500">Klik ticker saham untuk langsung membuka analisa fundamentalnya</span>
+            </div>
+
+            <!-- Main Agenda Cards Feed Container -->
+            <div id="calendar-cards-container" class="space-y-4">
+                <!-- Loaded dynamically by app.js -->
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-12 text-center text-slate-400 font-mono space-y-3">
+                    <div class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                    <p>Memuat kalender agenda & analisis saham terdampak...</p>
+                </div>
+            </div>
+
+            <!-- Empty State -->
+            <div id="calendar-empty-state" class="hidden bg-dark-card border border-dark-border rounded-2xl p-12 text-center space-y-3">
+                <div class="text-4xl">🔍</div>
+                <h3 class="text-base font-bold text-white">Tidak Ada Agenda yang Cocok</h3>
+                <p class="text-xs text-slate-400 max-w-md mx-auto">
+                    Tidak ditemukan agenda untuk kombinasi filter atau kata kunci pencarian yang Anda pilih. Silakan atur ulang filter pencarian.
+                </p>
+                <button id="calendar-empty-reset-btn" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold rounded-xl transition shadow-md">
+                    Reset Semua Filter
+                </button>
             </div>
         </section>
 
@@ -1263,6 +1471,43 @@
                         <span>📋</span> <span>Salin</span>
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========================================================================= -->
+    <!-- MODAL: MATRIKS SENSITIVITAS SEKTOR IDX TERHADAP KATALIS MAKRO             -->
+    <!-- ========================================================================= -->
+    <div id="modal-sector-sensitivity" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-3 sm:p-4">
+        <div class="bg-dark-card border border-dark-border rounded-3xl max-w-4xl w-full max-h-[90vh] flex flex-col shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200">
+            <!-- Modal Header -->
+            <div class="p-5 sm:p-6 border-b border-dark-border flex items-center justify-between bg-dark-bg/50">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-2xl bg-cyan-500/10 border border-cyan-500/25 flex items-center justify-center text-cyan-400 text-xl">
+                        📊
+                    </div>
+                    <div>
+                        <h3 class="text-base sm:text-lg font-bold text-white tracking-tight">Matriks Sensitivitas Sektor Saham IDX</h3>
+                        <p class="text-xs text-slate-400">Peta reaksi & elastisitas sektor terhadap katalis suku bunga, inflasi, valas, dan komoditas global</p>
+                    </div>
+                </div>
+                <button id="close-sector-sensitivity-modal-btn" class="w-8 h-8 rounded-full bg-dark-surface hover:bg-slate-700 text-slate-400 hover:text-white flex items-center justify-center text-sm font-bold transition">
+                    ✕
+                </button>
+            </div>
+
+            <!-- Modal Body (Scrollable) -->
+            <div id="sector-sensitivity-body" class="p-5 sm:p-6 overflow-y-auto space-y-4 text-xs">
+                <!-- Loaded dynamically by app.js -->
+                <div class="p-8 text-center text-slate-400 font-mono">Memuat matriks sensitivitas sektor...</div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-dark-border bg-dark-bg/50 flex items-center justify-between text-xs text-slate-400 font-mono">
+                <span>💡 Tip: Klik ticker untuk langsung melihat analisis fundamental emiten.</span>
+                <button id="btn-close-sector-sensitivity-footer" class="px-4 py-1.5 bg-dark-surface hover:bg-slate-700 text-white rounded-xl font-semibold transition border border-dark-border">
+                    Tutup
+                </button>
             </div>
         </div>
     </div>

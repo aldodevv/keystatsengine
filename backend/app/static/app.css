@@ -194,3 +194,53 @@ input:focus, select:focus {
     }
 }
 
+/* =========================================================================
+   Calendar Agenda & Impact Engine Custom Styles
+   ========================================================================= */
+.cal-agenda-card {
+    background: #111827;
+    border: 1px solid var(--border-subtle);
+    border-radius: 1.25rem;
+    transition: all 0.2s ease-in-out;
+}
+
+.cal-agenda-card:hover {
+    border-color: rgba(59, 130, 246, 0.4);
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+}
+
+.stock-chip-btn {
+    transition: all 0.15s ease-in-out;
+    cursor: pointer;
+}
+
+.stock-chip-btn:hover {
+    transform: translateY(-1px) scale(1.02);
+    box-shadow: 0 4px 12px rgba(0, 194, 116, 0.2);
+}
+
+.scenario-panel {
+    transition: max-height 0.3s ease-in-out, opacity 0.2s ease-in-out;
+}
+
+.pulse-red {
+    box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+    animation: pulseRedAnimation 2s infinite;
+}
+
+@keyframes pulseRedAnimation {
+    0% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.7);
+    }
+    70% {
+        transform: scale(1);
+        box-shadow: 0 0 0 6px rgba(244, 63, 94, 0);
+    }
+    100% {
+        transform: scale(0.95);
+        box-shadow: 0 0 0 0 rgba(244, 63, 94, 0);
+    }
+}
+
+

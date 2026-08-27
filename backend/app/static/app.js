@@ -356,6 +356,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // -------------------------------------------------------------
     const tabs = {
         'tab-market': 'section-market',
+        'tab-calendar': 'section-calendar',
         'tab-single': 'section-single',
         'tab-compare': 'section-compare',
         'tab-screener': 'section-screener'
@@ -383,6 +384,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Trigger fetch for tab if needed
             if (tabId === 'tab-market') {
                 loadMarketSummary();
+            } else if (tabId === 'tab-calendar') {
+                loadCalendarData();
             } else if (tabId === 'tab-compare') {
                 runComparison();
             } else if (tabId === 'tab-screener') {
@@ -1836,6 +1839,683 @@ document.addEventListener('DOMContentLoaded', () => {
             document.body.removeChild(link);
         });
     }
+
+    // =============================================================
+    // 5. CALENDAR AGENDA & IMPACT ENGINE FRONTEND
+    // =============================================================
+    let currentCalendarData = null;
+    let currentCalendarFilters = {
+        scope: 'ALL',
+        category: 'ALL',
+        impact_level: 'ALL',
+        timeframe: 'ALL',
+        search: '',
+        ticker: ''
+    };
+
+    // Helper: Seamless navigation from Calendar to Single Emiten Analysis
+    function navigateToSingleEmiten(ticker) {
+        if (!ticker) return;
+        ticker = ticker.trim().toUpperCase();
+
+        // Switch active tab styling
+        document.querySelectorAll('.nav-tab').forEach(t => {
+            t.classList.remove('active', 'text-white', 'bg-brand-600', 'shadow-md');
+            t.classList.add('text-slate-400');
+        });
+        const singleTab = document.getElementById('tab-single');
+        if (singleTab) {
+            singleTab.classList.add('active', 'text-white', 'bg-brand-600', 'shadow-md');
+            singleTab.classList.remove('text-slate-400');
+        }
+
+        // Show Single Emiten section
+        document.querySelectorAll('.tab-content').forEach(s => s.classList.add('hidden'));
+        const singleSec = document.getElementById('section-single');
+        if (singleSec) {
+            singleSec.classList.remove('hidden');
+        }
+
+        // Populate search box and load
+        const singleInput = document.getElementById('single-ticker-input');
+        if (singleInput) {
+            singleInput.value = ticker;
+        }
+        loadSingleEmiten(ticker);
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Make it globally accessible for inline onclick if needed
+    window.navigateToSingleEmiten = navigateToSingleEmiten;
+
+    // Fetch Calendar Data
+    async function loadCalendarData(forceRefresh = false) {
+        const container = document.getElementById('calendar-cards-container');
+        if (!currentCalendarData && container) {
+            container.innerHTML = `
+                <div class="bg-dark-card border border-dark-border rounded-2xl p-12 text-center text-slate-400 font-mono space-y-3">
+                    <div class="animate-spin w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full mx-auto"></div>
+                    <p>Memuat kalender agenda makro & analisis saham terdampak...</p>
+                </div>
+            `;
+        }
+
+        try {
+            const params = new URLSearchParams();
+            if (currentCalendarFilters.scope && currentCalendarFilters.scope !== 'ALL') params.set('scope', currentCalendarFilters.scope);
+            if (currentCalendarFilters.category && currentCalendarFilters.category !== 'ALL') params.set('category', currentCalendarFilters.category);
+            if (currentCalendarFilters.impact_level && currentCalendarFilters.impact_level !== 'ALL') params.set('impact_level', currentCalendarFilters.impact_level);
+            if (currentCalendarFilters.timeframe && currentCalendarFilters.timeframe !== 'ALL') params.set('timeframe', currentCalendarFilters.timeframe);
+            if (currentCalendarFilters.search) params.set('search', currentCalendarFilters.search);
+            if (currentCalendarFilters.ticker) params.set('ticker', currentCalendarFilters.ticker);
+
+            const url = `/api/v1/calendar?${params.toString()}`;
+            const resp = await fetch(url);
+            if (!resp.ok) throw new Error('Gagal mengambil data kalender');
+            const data = await resp.json();
+            currentCalendarData = data;
+
+            renderCalendarKPIs(data.stats, data.generated_at_desc);
+            renderCalendarHighlights(data.upcoming_highlights);
+            renderCalendarAgendas(data.agendas);
+            renderSectorSensitivityModal(data.sector_sensitivities);
+        } catch (err) {
+            console.error('Error fetching calendar data:', err);
+            if (container) {
+                container.innerHTML = `
+                    <div class="bg-dark-card border border-rose-500/30 rounded-2xl p-8 text-center text-rose-400 space-y-2">
+                        <p class="font-bold">Gagal memuat kalender agenda</p>
+                        <p class="text-xs text-slate-400">${err.message}</p>
+                        <button id="calendar-retry-btn" class="mt-2 px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg text-xs font-semibold shadow-md transition">Coba Lagi</button>
+                    </div>
+                `;
+                const retryBtn = document.getElementById('calendar-retry-btn');
+                if (retryBtn) retryBtn.addEventListener('click', () => loadCalendarData(true));
+            }
+        }
+    }
+
+    // Render KPI Metrics
+    function renderCalendarKPIs(stats, genDate) {
+        if (!stats) return;
+        const kpiHigh = document.getElementById('calendar-kpi-high-impact');
+        const kpiUs = document.getElementById('calendar-kpi-us-global');
+        const kpiDom = document.getElementById('calendar-kpi-domestic');
+        const kpiStocks = document.getElementById('calendar-kpi-stocks');
+        const dateDesc = document.getElementById('calendar-generated-date');
+
+        if (kpiHigh) kpiHigh.textContent = stats.high_impact_count || 0;
+        if (kpiUs) kpiUs.textContent = stats.us_global_count || 0;
+        if (kpiDom) kpiDom.textContent = stats.domestic_count || 0;
+        if (kpiStocks) kpiStocks.textContent = stats.total_affected_stocks || 0;
+        if (dateDesc && genDate) dateDesc.textContent = `Update: ${genDate}`;
+    }
+
+    // Render 3 Upcoming Highlights
+    function renderCalendarHighlights(highlights) {
+        const container = document.getElementById('calendar-highlights-container');
+        if (!container) return;
+        if (!highlights || !highlights.length) {
+            container.innerHTML = `<div class="p-6 text-center text-slate-500 col-span-3 font-mono text-xs">Tidak ada sorotan agenda terdekat saat ini.</div>`;
+            return;
+        }
+
+        container.innerHTML = highlights.map(item => {
+            const countdownBadgeClass = item.days_until <= 1 
+                ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse'
+                : 'bg-blue-500/20 text-blue-300 border-blue-500/40';
+
+            const impactStars = item.impact_level === 'HIGH' ? '🔴 3★ TINGGI' : (item.impact_level === 'MEDIUM' ? '🟡 2★ SEDANG' : '🟢 1★ RINGAN');
+
+            const stockChips = item.impacted_stocks.slice(0, 4).map(s => `
+                <button class="px-2 py-0.5 rounded-md bg-dark-bg border border-dark-border hover:border-brand-500 text-[11px] font-mono font-bold text-white hover:text-brand-400 transition" onclick="navigateToSingleEmiten('${s.ticker}')" title="${s.name} (${s.sector})">
+                    ${s.ticker}
+                </button>
+            `).join('');
+
+            return `
+                <div class="bg-dark-bg/70 border border-dark-border hover:border-blue-500/50 rounded-2xl p-4 flex flex-col justify-between space-y-3 transition duration-200 shadow-md group">
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between gap-1.5 text-xs">
+                            <span class="px-2 py-0.5 rounded-full border text-[10px] font-mono font-bold ${countdownBadgeClass}">
+                                ${item.relative_time_label}
+                            </span>
+                            <span class="text-[10px] font-mono text-slate-400">${item.flag_emoji} ${item.country}</span>
+                        </div>
+                        <h4 class="text-sm font-bold text-white group-hover:text-blue-300 transition leading-snug line-clamp-2">
+                            ${item.title}
+                        </h4>
+                        <div class="flex items-center gap-2 text-[11px] font-mono text-slate-400">
+                            <span>📅 ${item.event_date}</span>
+                            <span>⏰ ${item.time_utc7}</span>
+                        </div>
+                        <p class="text-xs text-slate-300 line-clamp-2 leading-relaxed">
+                            ${item.summary}
+                        </p>
+                    </div>
+
+                    <div class="pt-2 border-t border-dark-border/60 space-y-2">
+                        <div class="flex items-center justify-between text-[11px]">
+                            <span class="text-slate-400 font-mono">Dampak: <strong class="text-slate-200">${impactStars}</strong></span>
+                        </div>
+                        <div class="space-y-1">
+                            <span class="text-[10px] font-mono text-slate-400 block uppercase">Saham Terdampak:</span>
+                            <div class="flex flex-wrap gap-1">
+                                ${stockChips}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Render Full List of Agenda Cards
+    function renderCalendarAgendas(agendas) {
+        const container = document.getElementById('calendar-cards-container');
+        const emptyState = document.getElementById('calendar-empty-state');
+        const countDisplay = document.getElementById('calendar-count-display');
+
+        if (countDisplay) {
+            countDisplay.textContent = agendas ? agendas.length : 0;
+        }
+
+        if (!agendas || !agendas.length) {
+            if (container) container.innerHTML = '';
+            if (emptyState) emptyState.classList.remove('hidden');
+            return;
+        }
+
+        if (emptyState) emptyState.classList.add('hidden');
+        if (!container) return;
+
+        container.innerHTML = agendas.map((item, idx) => {
+            // Impact level badge
+            let impactBadgeHtml = '';
+            if (item.impact_level === 'HIGH') {
+                impactBadgeHtml = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/15 text-rose-400 border border-rose-500/30 flex items-center gap-1">🔴 Dampak Tinggi (3★)</span>';
+            } else if (item.impact_level === 'MEDIUM') {
+                impactBadgeHtml = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">🟡 Dampak Sedang (2★)</span>';
+            } else {
+                impactBadgeHtml = '<span class="px-2.5 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 flex items-center gap-1">🟢 Dampak Ringan (1★)</span>';
+            }
+
+            // Countdown Pill
+            let countdownPillHtml = '';
+            if (item.status === 'TODAY') {
+                countdownPillHtml = '<span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-extrabold bg-rose-500/25 text-rose-300 border border-rose-400 animate-pulse">🚨 Hari Ini</span>';
+            } else if (item.days_until === 1) {
+                countdownPillHtml = '<span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">⏳ Besok</span>';
+            } else if (item.days_until > 1) {
+                countdownPillHtml = `<span class="px-2.5 py-0.5 rounded-full text-xs font-mono font-semibold bg-blue-500/15 text-blue-300 border border-blue-500/25">${item.relative_time_label}</span>`;
+            } else {
+                countdownPillHtml = `<span class="px-2.5 py-0.5 rounded-full text-xs font-mono text-slate-400 bg-dark-surface/60 border border-dark-border">${item.relative_time_label}</span>`;
+            }
+
+            // Metric numbers bar (Previous, Forecast, Actual)
+            let metricsStripHtml = '';
+            if (item.previous_val || item.forecast_val || item.actual_val) {
+                metricsStripHtml = `
+                    <div class="grid grid-cols-3 gap-2 p-3 bg-dark-bg/60 border border-dark-border/80 rounded-xl font-mono text-xs">
+                        <div>
+                            <span class="text-[10px] text-slate-400 block uppercase">Sebelumnya</span>
+                            <span class="font-bold text-slate-200">${item.previous_val || '-'}</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block uppercase">Konsensus / Proyeksi</span>
+                            <span class="font-bold text-blue-300">${item.forecast_val || '-'}</span>
+                        </div>
+                        <div>
+                            <span class="text-[10px] text-slate-400 block uppercase">Aktual / Realisasi</span>
+                            <span class="font-bold ${item.actual_val ? 'text-emerald-400' : 'text-slate-500'}">${item.actual_val || 'Menunggu Rilis'}</span>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Impacted stocks cards & badges
+            const impactedStocksHtml = item.impacted_stocks.map(s => {
+                let biasBadge = '';
+                if (s.expected_bias === 'BULLISH') {
+                    biasBadge = '<span class="text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/25 font-bold">🟢 Bullish</span>';
+                } else if (s.expected_bias === 'BEARISH') {
+                    biasBadge = '<span class="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 border border-rose-500/25 font-bold">🔴 Bearish</span>';
+                } else {
+                    biasBadge = '<span class="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/25 font-bold">🟡 Volatil</span>';
+                }
+
+                return `
+                    <div class="bg-dark-bg/90 border border-dark-border hover:border-brand-500/60 rounded-xl p-3 space-y-1.5 transition stock-chip-btn group" onclick="navigateToSingleEmiten('${s.ticker}')">
+                        <div class="flex items-center justify-between gap-1">
+                            <div class="flex items-center gap-1.5">
+                                <span class="font-mono font-extrabold text-sm text-white group-hover:text-brand-400 transition">${s.ticker}</span>
+                                <span class="text-[10px] text-slate-400 truncate max-w-[110px]">${s.name}</span>
+                            </div>
+                            ${biasBadge}
+                        </div>
+                        <div class="flex items-center justify-between text-[10px] font-mono text-slate-400">
+                            <span>${s.sector}</span>
+                            <span class="text-slate-500">Sensitivitas: <strong class="text-slate-300">${s.sensitivity}</strong></span>
+                        </div>
+                        <p class="text-[11px] text-slate-300 leading-snug line-clamp-2">
+                            ${s.impact_reason}
+                        </p>
+                        <div class="text-[10px] text-brand-400 font-mono flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition pt-1">
+                            <span>Buka Analisa</span> <span>→</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Scenarios Matrix Items
+            const scenariosHtml = item.scenarios.map(sc => `
+                <div class="bg-dark-bg/80 border border-dark-border/80 rounded-xl p-3 space-y-2 text-xs">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-1 border-b border-dark-border/50 pb-1.5">
+                        <span class="font-bold text-white flex items-center gap-1.5">
+                            <span>📌</span> <span>${sc.scenario_name}</span>
+                        </span>
+                        <span class="text-[11px] font-mono text-cyan-300 bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/40">
+                            Kondisi: ${sc.condition}
+                        </span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-[11px]">
+                        <div>
+                            <span class="text-slate-400 block font-mono">Dampak ke IHSG:</span>
+                            <span class="font-semibold text-slate-200">${sc.ihsg_impact}</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block font-mono">Reaksi Sektor:</span>
+                            <span class="font-semibold text-slate-200">${sc.sector_impact}</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-3 pt-1 border-t border-dark-border/40 text-[11px]">
+                        ${sc.favored_stocks && sc.favored_stocks.length ? `
+                            <div class="flex items-center gap-1">
+                                <span class="text-emerald-400 font-mono">Saham Diuntungkan:</span>
+                                <div class="flex flex-wrap gap-1">
+                                    ${sc.favored_stocks.map(tk => `<span class="px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-mono font-bold">${tk}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                        ${sc.pressured_stocks && sc.pressured_stocks.length ? `
+                            <div class="flex items-center gap-1">
+                                <span class="text-rose-400 font-mono">Saham Tertekan:</span>
+                                <div class="flex flex-wrap gap-1">
+                                    ${sc.pressured_stocks.map(tk => `<span class="px-1.5 py-0.2 rounded bg-rose-500/20 text-rose-300 border border-rose-500/30 font-mono font-bold">${tk}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+                </div>
+            `).join('');
+
+            const accordionId = `scenario-accordion-${idx}`;
+
+            return `
+                <div class="cal-agenda-card p-4 sm:p-6 shadow-xl space-y-4 relative overflow-hidden" id="agenda-card-${item.id}">
+                    
+                    <!-- Card Top Header -->
+                    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-dark-border pb-3.5">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-2xl">${item.flag_emoji}</span>
+                            <div>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <span class="font-bold text-sm text-white">${item.country}</span>
+                                    <span class="text-xs text-slate-400">• ${item.institution}</span>
+                                    <span class="px-2 py-0.5 rounded-md text-[10px] font-mono bg-dark-surface border border-dark-border text-slate-300">${item.category_label}</span>
+                                </div>
+                                <h3 class="text-base sm:text-lg font-extrabold text-white mt-0.5 tracking-tight">${item.title}</h3>
+                            </div>
+                        </div>
+
+                        <div class="flex items-center gap-2 shrink-0">
+                            ${impactBadgeHtml}
+                            ${countdownPillHtml}
+                        </div>
+                    </div>
+
+                    <!-- Date & Time + Key Metrics Strip -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div class="flex items-center gap-3 p-3 bg-dark-bg/60 border border-dark-border/80 rounded-xl">
+                            <div class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/25 flex items-center justify-center text-blue-400 font-bold">
+                                📅
+                            </div>
+                            <div class="font-mono text-xs">
+                                <span class="text-slate-400 block">Jadwal Tanggal</span>
+                                <span class="font-bold text-white">${item.event_date}</span>
+                                <span class="text-slate-400 text-[10px] ml-1">(${item.time_utc7})</span>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            ${metricsStripHtml}
+                        </div>
+                    </div>
+
+                    <!-- Summary & Fundamental Transmission -->
+                    <div class="space-y-2.5">
+                        <p class="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                            ${item.summary}
+                        </p>
+
+                        <!-- Transmission Box -->
+                        <div class="p-3.5 bg-dark-surface/40 border border-dark-border rounded-xl space-y-1">
+                            <div class="flex items-center gap-1.5 text-xs font-bold text-blue-400">
+                                <span>⚙️</span>
+                                <span>Mekanisme Transmisi Dampak ke Pasar IDX:</span>
+                            </div>
+                            <p class="text-xs text-slate-300 leading-relaxed">
+                                ${item.transmission_mechanism}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Impacted Stocks Grid -->
+                    <div class="space-y-2">
+                        <div class="flex items-center justify-between">
+                            <span class="text-xs font-bold text-white flex items-center gap-1.5">
+                                <span>🎯</span>
+                                <span>Saham Terdampak Langsung (${item.impacted_stocks.length} Emiten):</span>
+                            </span>
+                            <span class="text-[11px] font-mono text-slate-400">Klik saham untuk analisa fundamental</span>
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2.5">
+                            ${impactedStocksHtml}
+                        </div>
+                    </div>
+
+                    <!-- Actionable Strategy & Scenario Dropdown Toggle -->
+                    <div class="pt-3 border-t border-dark-border space-y-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+                            <div class="flex items-center gap-2 text-slate-300">
+                                <span class="text-amber-400">💡</span>
+                                <span><strong>Strategi Aksi:</strong> ${item.actionable_strategy}</span>
+                            </div>
+
+                            <button class="toggle-scenarios-btn px-3 py-1.5 rounded-xl bg-dark-surface hover:bg-dark-border text-cyan-400 hover:text-cyan-300 border border-cyan-500/30 text-xs font-semibold transition flex items-center gap-1.5 shrink-0" data-target="${accordionId}">
+                                <span>📊</span>
+                                <span>Matriks Skenario Hasil</span>
+                                <span class="accordion-arrow transform transition-transform duration-200">▼</span>
+                            </button>
+                        </div>
+
+                        <!-- Collapsible Scenarios Panel -->
+                        <div id="${accordionId}" class="scenario-panel hidden space-y-2 pt-2 border-t border-dark-border/40">
+                            <span class="text-[11px] font-mono text-slate-400 block uppercase">Analisis Skenario Reaksi Pasar:</span>
+                            ${scenariosHtml}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Attach Scenario Accordion Toggle Listeners
+        document.querySelectorAll('.toggle-scenarios-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetId = btn.getAttribute('data-target');
+                const panel = document.getElementById(targetId);
+                const arrow = btn.querySelector('.accordion-arrow');
+                if (panel) {
+                    const isHidden = panel.classList.contains('hidden');
+                    if (isHidden) {
+                        panel.classList.remove('hidden');
+                        if (arrow) arrow.style.transform = 'rotate(180deg)';
+                    } else {
+                        panel.classList.add('hidden');
+                        if (arrow) arrow.style.transform = 'rotate(0deg)';
+                    }
+                }
+            });
+        });
+    }
+
+    // Render Sector Sensitivity Modal Content
+    function renderSectorSensitivityModal(sectors) {
+        const body = document.getElementById('sector-sensitivity-body');
+        if (!body || !sectors || !sectors.length) return;
+
+        body.innerHTML = sectors.map(sec => {
+            const tickers = sec.key_tickers.map(tk => `
+                <button class="px-2 py-0.5 rounded bg-dark-bg border border-dark-border hover:border-brand-500 text-xs font-mono font-bold text-white hover:text-brand-400 transition" onclick="document.getElementById('modal-sector-sensitivity').classList.add('hidden'); navigateToSingleEmiten('${tk}')">
+                    ${tk}
+                </button>
+            `).join('');
+
+            const catalysts = sec.primary_catalysts.map(cat => `
+                <span class="px-2 py-0.5 rounded bg-blue-500/10 text-blue-300 border border-blue-500/20 text-[11px] font-mono">${cat}</span>
+            `).join('');
+
+            let sensitivityBadge = '';
+            if (sec.sensitivity_level === 'Sangat Tinggi') {
+                sensitivityBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30">🔴 Sangat Tinggi</span>';
+            } else if (sec.sensitivity_level === 'Tinggi') {
+                sensitivityBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">🟡 Tinggi</span>';
+            } else {
+                sensitivityBadge = '<span class="px-2 py-0.5 rounded-full text-[10px] font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">🟢 Sedang</span>';
+            }
+
+            return `
+                <div class="bg-dark-bg border border-dark-border hover:border-cyan-500/40 rounded-2xl p-4 sm:p-5 space-y-3 transition">
+                    <div class="flex items-center justify-between border-b border-dark-border pb-2.5">
+                        <div class="flex items-center gap-2.5">
+                            <span class="text-2xl">${sec.icon}</span>
+                            <div>
+                                <h4 class="text-sm sm:text-base font-bold text-white">${sec.sector_name}</h4>
+                            </div>
+                        </div>
+                        ${sensitivityBadge}
+                    </div>
+
+                    <div class="space-y-2 text-xs">
+                        <div>
+                            <span class="text-[10px] font-mono text-slate-400 block uppercase mb-1">Katalis Penggerak Utama:</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                ${catalysts}
+                            </div>
+                        </div>
+
+                        <div>
+                            <span class="text-[10px] font-mono text-slate-400 block uppercase mb-1">Saham Utama Terkait:</span>
+                            <div class="flex flex-wrap gap-1.5">
+                                ${tickers}
+                            </div>
+                        </div>
+
+                        <div class="p-2.5 bg-dark-surface/40 border border-dark-border/80 rounded-xl text-slate-300 text-xs leading-relaxed">
+                            <span class="text-cyan-400 font-semibold font-mono">Sensitivitas Makro:</span> ${sec.macro_exposure}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    // Attach Calendar Event Listeners
+    function attachCalendarListeners() {
+        // Scope Buttons
+        document.querySelectorAll('.cal-scope-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cal-scope-btn').forEach(b => {
+                    b.classList.remove('active', 'text-white', 'bg-blue-600', 'shadow-sm');
+                    b.classList.add('text-slate-400');
+                });
+                btn.classList.add('active', 'text-white', 'bg-blue-600', 'shadow-sm');
+                btn.classList.remove('text-slate-400');
+                currentCalendarFilters.scope = btn.getAttribute('data-scope') || 'ALL';
+                loadCalendarData();
+            });
+        });
+
+        // Category Buttons
+        document.querySelectorAll('.cal-cat-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cal-cat-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-blue-600', 'text-white');
+                    b.classList.add('bg-dark-bg', 'border', 'border-dark-border', 'text-slate-300');
+                });
+                btn.classList.add('active', 'bg-blue-600', 'text-white');
+                btn.classList.remove('bg-dark-bg', 'text-slate-300');
+                currentCalendarFilters.category = btn.getAttribute('data-category') || 'ALL';
+                loadCalendarData();
+            });
+        });
+
+        // Impact Level Buttons
+        document.querySelectorAll('.cal-impact-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cal-impact-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-dark-surface', 'border-slate-600', 'text-white');
+                    b.classList.add('bg-dark-bg');
+                });
+                btn.classList.add('active', 'bg-dark-surface', 'border-slate-600', 'text-white');
+                btn.classList.remove('bg-dark-bg');
+                currentCalendarFilters.impact_level = btn.getAttribute('data-impact') || 'ALL';
+                loadCalendarData();
+            });
+        });
+
+        // Time Horizon Buttons
+        document.querySelectorAll('.cal-time-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cal-time-btn').forEach(b => {
+                    b.classList.remove('active', 'bg-dark-surface', 'border-slate-600', 'text-white');
+                    b.classList.add('bg-dark-bg');
+                });
+                btn.classList.add('active', 'bg-dark-surface', 'border-slate-600', 'text-white');
+                btn.classList.remove('bg-dark-bg');
+                currentCalendarFilters.timeframe = btn.getAttribute('data-time') || 'ALL';
+                loadCalendarData();
+            });
+        });
+
+        // Search Input with Debounce
+        const searchInput = document.getElementById('calendar-search-input');
+        const clearSearchBtn = document.getElementById('calendar-clear-search-btn');
+        let searchTimer = null;
+
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => {
+                const val = e.target.value.trim();
+                if (clearSearchBtn) {
+                    if (val) clearSearchBtn.classList.remove('hidden');
+                    else clearSearchBtn.classList.add('hidden');
+                }
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => {
+                    currentCalendarFilters.search = val;
+                    loadCalendarData();
+                }, 300);
+            });
+        }
+
+        if (clearSearchBtn) {
+            clearSearchBtn.addEventListener('click', () => {
+                if (searchInput) searchInput.value = '';
+                clearSearchBtn.classList.add('hidden');
+                currentCalendarFilters.search = '';
+                loadCalendarData();
+            });
+        }
+
+        // Reset Filter Buttons
+        const resetFilters = () => {
+            currentCalendarFilters = {
+                scope: 'ALL',
+                category: 'ALL',
+                impact_level: 'ALL',
+                timeframe: 'ALL',
+                search: '',
+                ticker: ''
+            };
+            if (searchInput) searchInput.value = '';
+            if (clearSearchBtn) clearSearchBtn.classList.add('hidden');
+
+            // Reset UI pills
+            document.querySelectorAll('.cal-scope-btn').forEach(b => {
+                if (b.getAttribute('data-scope') === 'ALL') {
+                    b.classList.add('active', 'text-white', 'bg-blue-600', 'shadow-sm');
+                    b.classList.remove('text-slate-400');
+                } else {
+                    b.classList.remove('active', 'text-white', 'bg-blue-600', 'shadow-sm');
+                    b.classList.add('text-slate-400');
+                }
+            });
+
+            document.querySelectorAll('.cal-cat-btn').forEach(b => {
+                if (b.getAttribute('data-category') === 'ALL') {
+                    b.classList.add('active', 'bg-blue-600', 'text-white');
+                    b.classList.remove('bg-dark-bg', 'text-slate-300');
+                } else {
+                    b.classList.remove('active', 'bg-blue-600', 'text-white');
+                    b.classList.add('bg-dark-bg', 'text-slate-300');
+                }
+            });
+
+            document.querySelectorAll('.cal-impact-btn').forEach(b => {
+                if (b.getAttribute('data-impact') === 'ALL') {
+                    b.classList.add('active', 'bg-dark-surface', 'border-slate-600', 'text-white');
+                    b.classList.remove('bg-dark-bg');
+                } else {
+                    b.classList.remove('active', 'bg-dark-surface', 'border-slate-600', 'text-white');
+                    b.classList.add('bg-dark-bg');
+                }
+            });
+
+            document.querySelectorAll('.cal-time-btn').forEach(b => {
+                if (b.getAttribute('data-time') === 'ALL') {
+                    b.classList.add('active', 'bg-dark-surface', 'border-slate-600', 'text-white');
+                    b.classList.remove('bg-dark-bg');
+                } else {
+                    b.classList.remove('active', 'bg-dark-surface', 'border-slate-600', 'text-white');
+                    b.classList.add('bg-dark-bg');
+                }
+            });
+
+            loadCalendarData();
+        };
+
+        const resetBtn1 = document.getElementById('calendar-reset-all-filters-btn');
+        const resetBtn2 = document.getElementById('calendar-empty-reset-btn');
+        if (resetBtn1) resetBtn1.addEventListener('click', resetFilters);
+        if (resetBtn2) resetBtn2.addEventListener('click', resetFilters);
+
+        // Refresh Button
+        const refreshBtn = document.getElementById('btn-refresh-calendar');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                refreshBtn.classList.add('animate-spin');
+                loadCalendarData(true).finally(() => {
+                    setTimeout(() => refreshBtn.classList.remove('animate-spin'), 600);
+                });
+            });
+        }
+
+        // Sector Sensitivity Modal
+        const sectorModal = document.getElementById('modal-sector-sensitivity');
+        const openSectorModalBtn = document.getElementById('btn-open-sector-sensitivity');
+        const closeSectorModalBtn1 = document.getElementById('close-sector-sensitivity-modal-btn');
+        const closeSectorModalBtn2 = document.getElementById('btn-close-sector-sensitivity-footer');
+
+        if (openSectorModalBtn && sectorModal) {
+            openSectorModalBtn.addEventListener('click', () => {
+                sectorModal.classList.remove('hidden');
+            });
+        }
+
+        const closeSectorModal = () => {
+            if (sectorModal) sectorModal.classList.add('hidden');
+        };
+
+        if (closeSectorModalBtn1) closeSectorModalBtn1.addEventListener('click', closeSectorModal);
+        if (closeSectorModalBtn2) closeSectorModalBtn2.addEventListener('click', closeSectorModal);
+        if (sectorModal) {
+            sectorModal.addEventListener('click', (e) => {
+                if (e.target === sectorModal) closeSectorModal();
+            });
+        }
+    }
+
+    attachCalendarListeners();
 
     // -------------------------------------------------------------
     // Initial load: Fetch Live FX Rates, Load Market Overview & BBRI
