@@ -3,7 +3,7 @@ Yahoo Finance Data Provider for IDX Emitens (.JK suffix).
 Fetches real-time market data, financials, balance sheets, and cash flows with fast fallback and caching.
 """
 
-from typing import Optional, List
+from typing import Optional, List, Any
 import concurrent.futures
 import yfinance as yf
 from app.data_providers.base import BaseDataProvider
@@ -90,14 +90,17 @@ class YFinanceProvider(BaseDataProvider):
         q_bal = getattr(stock, "quarterly_balance_sheet", None)
         q_cf = getattr(stock, "quarterly_cashflow", None)
         
-        # Check if raw revenue is in USD or thousands (e.g. Market Cap > 1T IDR but Revenue < 10B)
-        if income_stmt is not None and not income_stmt.empty:
-            try:
-                first_rev = float(income_stmt.iloc[0, 0]) if len(income_stmt.columns) > 0 else 0.0
-                if market_cap > 1_000_000_000_000 and 0 < first_rev < 10_000_000_000:
-                    fx_multiplier = 16400.0
-            except Exception:
-                pass
+        # Secondary check: if Total Revenue is specifically in USD (e.g. Market Cap > 1T IDR but Total Revenue < 10B)
+        if income_stmt is not None and not income_stmt.empty and fx_multiplier == 1.0:
+            for rev_key in ["Total Revenue", "Operating Revenue", "Revenue"]:
+                if rev_key in income_stmt.index:
+                    try:
+                        tot_rev = self._clean_float(income_stmt.loc[rev_key])
+                        if tot_rev is not None and market_cap > 1_000_000_000_000 and 0 < tot_rev < 10_000_000_000:
+                            fx_multiplier = 16400.0
+                            break
+                    except Exception:
+                        pass
         
         current_period = self._extract_period(income_stmt, balance_sheet, cashflow, col_idx=0, shares=shares, fx_multiplier=fx_multiplier)
         previous_period = self._extract_period(income_stmt, balance_sheet, cashflow, col_idx=1, shares=shares, fx_multiplier=fx_multiplier)
@@ -176,6 +179,32 @@ class YFinanceProvider(BaseDataProvider):
             return self.fallback_provider.search_tickers(query)
         return []
 
+    def _clean_float(self, val: Any, round_digits: Optional[int] = None, default: Optional[float] = None) -> Optional[float]:
+        import math
+        if val is None:
+            return default
+        while hasattr(val, "iloc"):
+            try:
+                if len(val) == 0:
+                    return default
+                val = val.iloc[0]
+            except Exception:
+                break
+        if hasattr(val, "item"):
+            try:
+                val = val.item()
+            except Exception:
+                pass
+        try:
+            f = float(val)
+            if math.isnan(f) or math.isinf(f):
+                return default
+            if round_digits is not None:
+                return round(f, round_digits)
+            return f
+        except (ValueError, TypeError):
+            return default
+
     def _extract_period(self, inc, bal, cf, col_idx: int, shares: float, fx_multiplier: float = 1.0) -> FinancialPeriod:
         from datetime import datetime
         year = datetime.now().year - col_idx
@@ -199,8 +228,9 @@ class YFinanceProvider(BaseDataProvider):
                 if k in df.index:
                     try:
                         val = df.loc[k].iloc[col_idx]
-                        if val is not None and str(val) != 'nan':
-                            return float(val) * fx_multiplier
+                        cleaned = self._clean_float(val)
+                        if cleaned is not None:
+                            return cleaned * fx_multiplier
                     except Exception:
                         pass
             return default
@@ -236,29 +266,29 @@ class YFinanceProvider(BaseDataProvider):
         
         return FinancialPeriod(
             year=year,
-            revenue=rev,
-            gross_profit=gp if gp > 0 else rev * 0.4,
-            operating_profit=op if op > 0 else rev * 0.2,
-            ebit=ebit if ebit > 0 else op,
-            ebitda=ebitda if ebitda > 0 else op * 1.15,
-            net_income=ni,
-            eps=eps,
-            total_assets=assets,
-            current_assets=cur_assets,
-            cash_and_equivalents=cash,
-            inventory=inv,
-            receivables=rec,
-            total_liabilities=liab,
-            current_liabilities=cur_liab,
-            total_debt=debt,
-            short_term_debt=st_debt,
-            long_term_debt=lt_debt,
-            total_equity=equity,
-            retained_earnings=re,
-            cfo=cfo,
-            capex=capex,
-            fcf=fcf,
-            dividends_paid=divs,
+            revenue=self._clean_float(rev, default=0.0) or 0.0,
+            gross_profit=self._clean_float(gp if gp > 0 else rev * 0.4, default=0.0) or 0.0,
+            operating_profit=self._clean_float(op if op > 0 else rev * 0.2, default=0.0) or 0.0,
+            ebit=self._clean_float(ebit if ebit > 0 else op, default=0.0) or 0.0,
+            ebitda=self._clean_float(ebitda if ebitda > 0 else op * 1.15, default=0.0) or 0.0,
+            net_income=self._clean_float(ni, default=0.0) or 0.0,
+            eps=self._clean_float(eps, 2, default=0.0) or 0.0,
+            total_assets=self._clean_float(assets, default=0.0) or 0.0,
+            current_assets=self._clean_float(cur_assets, default=0.0) or 0.0,
+            cash_and_equivalents=self._clean_float(cash, default=0.0) or 0.0,
+            inventory=self._clean_float(inv, default=0.0) or 0.0,
+            receivables=self._clean_float(rec, default=0.0) or 0.0,
+            total_liabilities=self._clean_float(liab, default=0.0) or 0.0,
+            current_liabilities=self._clean_float(cur_liab, default=0.0) or 0.0,
+            total_debt=self._clean_float(debt, default=0.0) or 0.0,
+            short_term_debt=self._clean_float(st_debt, default=0.0) or 0.0,
+            long_term_debt=self._clean_float(lt_debt, default=0.0) or 0.0,
+            total_equity=self._clean_float(equity, default=0.0) or 0.0,
+            retained_earnings=self._clean_float(re, default=0.0) or 0.0,
+            cfo=self._clean_float(cfo, default=0.0) or 0.0,
+            capex=self._clean_float(capex, default=0.0) or 0.0,
+            fcf=self._clean_float(fcf, default=0.0) or 0.0,
+            dividends_paid=self._clean_float(divs, default=0.0) or 0.0,
             shares_outstanding=shares
         )
 
@@ -291,8 +321,10 @@ class YFinanceProvider(BaseDataProvider):
             for c in q_inc.columns:
                 y = c.year
                 q_num = (c.month - 1) // 3 + 1
-                ni = float(q_inc[c].get("Net Income Common Stockholders", q_inc[c].get("Net Income", 0)) or 0) * fx_multiplier
-                rev = float(q_inc[c].get("Total Revenue", q_inc[c].get("Operating Revenue", 0)) or 0) * fx_multiplier
+                raw_ni = q_inc[c].get("Net Income Common Stockholders", q_inc[c].get("Net Income", 0))
+                raw_rev = q_inc[c].get("Total Revenue", q_inc[c].get("Operating Revenue", 0))
+                ni = (self._clean_float(raw_ni, default=0.0) or 0.0) * fx_multiplier
+                rev = (self._clean_float(raw_rev, default=0.0) or 0.0) * fx_multiplier
                 eps = ni / shares if shares > 0 else 0.0
                 if y not in q_map:
                     q_map[y] = {}
@@ -303,8 +335,10 @@ class YFinanceProvider(BaseDataProvider):
         if ann_inc is not None and not ann_inc.empty:
             for c in ann_inc.columns:
                 y = c.year
-                ni = float(ann_inc[c].get("Net Income Common Stockholders", ann_inc[c].get("Net Income", 0)) or 0) * fx_multiplier
-                rev = float(ann_inc[c].get("Total Revenue", ann_inc[c].get("Operating Revenue", 0)) or 0) * fx_multiplier
+                raw_ni = ann_inc[c].get("Net Income Common Stockholders", ann_inc[c].get("Net Income", 0))
+                raw_rev = ann_inc[c].get("Total Revenue", ann_inc[c].get("Operating Revenue", 0))
+                ni = (self._clean_float(raw_ni, default=0.0) or 0.0) * fx_multiplier
+                rev = (self._clean_float(raw_rev, default=0.0) or 0.0) * fx_multiplier
                 eps = ni / shares if shares > 0 else 0.0
                 ann_map[y] = {"ni": ni, "rev": rev, "eps": eps}
 
@@ -321,7 +355,8 @@ class YFinanceProvider(BaseDataProvider):
                         except Exception:
                             y = None
                     if y:
-                        div_map[y] = div_map.get(y, 0.0) + float(d_amount)
+                        c_amt = self._clean_float(d_amount, default=0.0) or 0.0
+                        div_map[y] = div_map.get(y, 0.0) + c_amt
         except Exception:
             pass
 
@@ -331,95 +366,100 @@ class YFinanceProvider(BaseDataProvider):
         ttm_count = 0
         if q_inc is not None and not q_inc.empty:
             for c in q_inc.columns[:4]:
-                ttm_ni += float(q_inc[c].get("Net Income Common Stockholders", q_inc[c].get("Net Income", 0)) or 0) * fx_multiplier
-                ttm_rev += float(q_inc[c].get("Total Revenue", q_inc[c].get("Operating Revenue", 0)) or 0) * fx_multiplier
+                c_ni = (self._clean_float(q_inc[c].get("Net Income Common Stockholders", q_inc[c].get("Net Income", 0)), default=0.0) or 0.0) * fx_multiplier
+                c_rev = (self._clean_float(q_inc[c].get("Total Revenue", q_inc[c].get("Operating Revenue", 0)), default=0.0) or 0.0) * fx_multiplier
+                ttm_ni += c_ni
+                ttm_rev += c_rev
                 ttm_count += 1
         
         if ttm_count < 4 or ttm_ni == 0:
             ttm_ni = curr_period.net_income
             ttm_rev = curr_period.revenue
 
-        ttm_eps = round(ttm_ni / shares, 2) if shares > 0 else 0.0
+        ttm_eps = self._clean_float(ttm_ni / shares if shares > 0 else 0.0, 2, default=0.0) or 0.0
 
         for y in years:
             y_q = q_map.get(y, {})
             y_ann = ann_map.get(y, {})
             
             # EPS
-            q1_eps = y_q.get("q1", {}).get("eps")
-            q2_eps = y_q.get("q2", {}).get("eps")
-            q3_eps = y_q.get("q3", {}).get("eps")
-            q4_eps = y_q.get("q4", {}).get("eps")
+            q1_eps = self._clean_float(y_q.get("q1", {}).get("eps"), 2)
+            q2_eps = self._clean_float(y_q.get("q2", {}).get("eps"), 2)
+            q3_eps = self._clean_float(y_q.get("q3", {}).get("eps"), 2)
+            q4_eps = self._clean_float(y_q.get("q4", {}).get("eps"), 2)
             
-            ann_eps = y_ann.get("eps")
+            ann_eps = self._clean_float(y_ann.get("eps"), 2)
             if ann_eps is None and y_q:
-                # Sum available quarters or project
-                ann_eps = sum(v["eps"] for v in y_q.values())
+                # Sum available quarters
+                q_sum = sum(self._clean_float(v["eps"], default=0.0) or 0.0 for v in y_q.values())
+                ann_eps = self._clean_float(q_sum, 2)
             
-            annualised_eps = round(q1_eps * 4.0, 2) if (y == 2026 and q1_eps is not None) else (round(ann_eps, 2) if ann_eps is not None else None)
-            ttm_year_eps = ttm_eps if y == 2026 else (round(ann_eps, 2) if ann_eps is not None else None)
+            annualised_eps = self._clean_float(q1_eps * 4.0, 2) if (y == 2026 and q1_eps is not None) else ann_eps
+            ttm_year_eps = ttm_eps if y == 2026 else ann_eps
             
             # Dividend and Payout
-            y_dps = div_map.get(y, dps_val if y == 2026 else None)
-            payout = round((y_dps / (ttm_year_eps or 1.0) * 100), 2) if (y_dps and ttm_year_eps and ttm_year_eps > 0) else None
-            div_yield = round((y_dps / current_price * 100), 2) if (y_dps and current_price > 0) else None
+            y_dps = self._clean_float(div_map.get(y, dps_val if y == 2026 else None), 2)
+            payout = self._clean_float((y_dps / (ttm_year_eps or 1.0) * 100), 2) if (y_dps and ttm_year_eps and ttm_year_eps > 0) else None
+            div_yield = self._clean_float((y_dps / current_price * 100), 2) if (y_dps and current_price > 0) else None
             
             eps_mat[str(y)] = QuarterlyDataPoint(
-                q1=round(q1_eps, 2) if q1_eps is not None else None,
-                q2=round(q2_eps, 2) if q2_eps is not None else None,
-                q3=round(q3_eps, 2) if q3_eps is not None else None,
-                q4=round(q4_eps, 2) if q4_eps is not None else None,
+                q1=q1_eps,
+                q2=q2_eps,
+                q3=q3_eps,
+                q4=q4_eps,
                 annualised=annualised_eps,
                 ttm=ttm_year_eps,
-                dividend_ttm=round(y_dps, 2) if y_dps is not None else None,
+                dividend_ttm=y_dps,
                 payout_ratio_pct=payout,
                 dividend_yield_pct=div_yield
             )
             
             # Revenue
-            q1_rev = y_q.get("q1", {}).get("rev")
-            q2_rev = y_q.get("q2", {}).get("rev")
-            q3_rev = y_q.get("q3", {}).get("rev")
-            q4_rev = y_q.get("q4", {}).get("rev")
-            ann_rev = y_ann.get("rev")
+            q1_rev = self._clean_float(y_q.get("q1", {}).get("rev"), 0)
+            q2_rev = self._clean_float(y_q.get("q2", {}).get("rev"), 0)
+            q3_rev = self._clean_float(y_q.get("q3", {}).get("rev"), 0)
+            q4_rev = self._clean_float(y_q.get("q4", {}).get("rev"), 0)
+            ann_rev = self._clean_float(y_ann.get("rev"), 0)
             if ann_rev is None and y_q:
-                ann_rev = sum(v["rev"] for v in y_q.values())
+                q_sum_rev = sum(self._clean_float(v["rev"], default=0.0) or 0.0 for v in y_q.values())
+                ann_rev = self._clean_float(q_sum_rev, 0)
             
-            annualised_rev = round(q1_rev * 4.0, 0) if (y == 2026 and q1_rev is not None) else (round(ann_rev, 0) if ann_rev is not None else None)
-            ttm_year_rev = round(ttm_rev, 0) if y == 2026 else (round(ann_rev, 0) if ann_rev is not None else None)
+            annualised_rev = self._clean_float(q1_rev * 4.0, 0) if (y == 2026 and q1_rev is not None) else ann_rev
+            ttm_year_rev = self._clean_float(ttm_rev, 0) if y == 2026 else ann_rev
             
             rev_mat[str(y)] = QuarterlyDataPoint(
-                q1=round(q1_rev, 0) if q1_rev is not None else None,
-                q2=round(q2_rev, 0) if q2_rev is not None else None,
-                q3=round(q3_rev, 0) if q3_rev is not None else None,
-                q4=round(q4_rev, 0) if q4_rev is not None else None,
+                q1=q1_rev,
+                q2=q2_rev,
+                q3=q3_rev,
+                q4=q4_rev,
                 annualised=annualised_rev,
                 ttm=ttm_year_rev,
-                dividend_ttm=round(y_dps, 2) if y_dps is not None else None,
+                dividend_ttm=y_dps,
                 payout_ratio_pct=payout,
                 dividend_yield_pct=div_yield
             )
             
             # Net Income
-            q1_ni = y_q.get("q1", {}).get("ni")
-            q2_ni = y_q.get("q2", {}).get("ni")
-            q3_ni = y_q.get("q3", {}).get("ni")
-            q4_ni = y_q.get("q4", {}).get("ni")
-            ann_ni = y_ann.get("ni")
+            q1_ni = self._clean_float(y_q.get("q1", {}).get("ni"), 0)
+            q2_ni = self._clean_float(y_q.get("q2", {}).get("ni"), 0)
+            q3_ni = self._clean_float(y_q.get("q3", {}).get("ni"), 0)
+            q4_ni = self._clean_float(y_q.get("q4", {}).get("ni"), 0)
+            ann_ni = self._clean_float(y_ann.get("ni"), 0)
             if ann_ni is None and y_q:
-                ann_ni = sum(v["ni"] for v in y_q.values())
+                q_sum_ni = sum(self._clean_float(v["ni"], default=0.0) or 0.0 for v in y_q.values())
+                ann_ni = self._clean_float(q_sum_ni, 0)
                 
-            annualised_ni = round(q1_ni * 4.0, 0) if (y == 2026 and q1_ni is not None) else (round(ann_ni, 0) if ann_ni is not None else None)
-            ttm_year_ni = round(ttm_ni, 0) if y == 2026 else (round(ann_ni, 0) if ann_ni is not None else None)
+            annualised_ni = self._clean_float(q1_ni * 4.0, 0) if (y == 2026 and q1_ni is not None) else ann_ni
+            ttm_year_ni = self._clean_float(ttm_ni, 0) if y == 2026 else ann_ni
             
             net_income_mat[str(y)] = QuarterlyDataPoint(
-                q1=round(q1_ni, 0) if q1_ni is not None else None,
-                q2=round(q2_ni, 0) if q2_ni is not None else None,
-                q3=round(q3_ni, 0) if q3_ni is not None else None,
-                q4=round(q4_ni, 0) if q4_ni is not None else None,
+                q1=q1_ni,
+                q2=q2_ni,
+                q3=q3_ni,
+                q4=q4_ni,
                 annualised=annualised_ni,
                 ttm=ttm_year_ni,
-                dividend_ttm=round(y_dps, 2) if y_dps is not None else None,
+                dividend_ttm=y_dps,
                 payout_ratio_pct=payout,
                 dividend_yield_pct=div_yield
             )
@@ -432,21 +472,22 @@ class YFinanceProvider(BaseDataProvider):
                         if k in df.index:
                             try:
                                 val = df.loc[k].iloc[0]
-                                if val is not None and str(val) != 'nan':
-                                    return float(val) * fx_multiplier
+                                cleaned = self._clean_float(val)
+                                if cleaned is not None:
+                                    return cleaned * fx_multiplier
                             except Exception:
                                 pass
             return default
 
-        cash_val = _get_bs_val(["Cash And Cash Equivalents", "Cash Cash Equivalents And Short Term Investments", "Cash"], curr_period.cash_and_equivalents)
-        assets_val = _get_bs_val(["Total Assets"], curr_period.total_assets)
-        liab_val = _get_bs_val(["Total Liabilities Net Minority Interest", "Total Liabilities"], curr_period.total_liabilities)
-        equity_val = _get_bs_val(["Stockholders Equity", "Total Equity Gross Minority Interest", "Common Stock Equity"], curr_period.total_equity)
-        cur_assets_val = _get_bs_val(["Current Assets", "Total Current Assets"], curr_period.current_assets)
-        cur_liab_val = _get_bs_val(["Current Liabilities", "Total Current Liabilities"], curr_period.current_liabilities)
-        debt_val = _get_bs_val(["Total Debt", "Long Term Debt And Capital Lease Obligation"], curr_period.total_debt)
-        lt_debt_val = _get_bs_val(["Long Term Debt"], curr_period.long_term_debt)
-        st_debt_val = _get_bs_val(["Current Debt"], curr_period.short_term_debt)
+        cash_val = self._clean_float(_get_bs_val(["Cash And Cash Equivalents", "Cash Cash Equivalents And Short Term Investments", "Cash"], curr_period.cash_and_equivalents), default=0.0) or 0.0
+        assets_val = self._clean_float(_get_bs_val(["Total Assets"], curr_period.total_assets), default=0.0) or 0.0
+        liab_val = self._clean_float(_get_bs_val(["Total Liabilities Net Minority Interest", "Total Liabilities"], curr_period.total_liabilities), default=0.0) or 0.0
+        equity_val = self._clean_float(_get_bs_val(["Stockholders Equity", "Total Equity Gross Minority Interest", "Common Stock Equity"], curr_period.total_equity), default=0.0) or 0.0
+        cur_assets_val = self._clean_float(_get_bs_val(["Current Assets", "Total Current Assets"], curr_period.current_assets), default=0.0) or 0.0
+        cur_liab_val = self._clean_float(_get_bs_val(["Current Liabilities", "Total Current Liabilities"], curr_period.current_liabilities), default=0.0) or 0.0
+        debt_val = self._clean_float(_get_bs_val(["Total Debt", "Long Term Debt And Capital Lease Obligation"], curr_period.total_debt), default=0.0) or 0.0
+        lt_debt_val = self._clean_float(_get_bs_val(["Long Term Debt"], curr_period.long_term_debt), default=0.0) or 0.0
+        st_debt_val = self._clean_float(_get_bs_val(["Current Debt"], curr_period.short_term_debt), default=0.0) or 0.0
         
         # Cash flow metrics
         def _get_cf_val(keys, default=0.0):
@@ -456,14 +497,15 @@ class YFinanceProvider(BaseDataProvider):
                         if k in df.index:
                             try:
                                 val = df.loc[k].iloc[0]
-                                if val is not None and str(val) != 'nan':
-                                    return float(val) * fx_multiplier
+                                cleaned = self._clean_float(val)
+                                if cleaned is not None:
+                                    return cleaned * fx_multiplier
                             except Exception:
                                 pass
             return default
             
-        cfo_val = _get_cf_val(["Operating Cash Flow", "Cash Flow From Continuing Operating Activities"], curr_period.cfo)
-        fcf_val = _get_cf_val(["Free Cash Flow"], curr_period.fcf)
+        cfo_val = self._clean_float(_get_cf_val(["Operating Cash Flow", "Cash Flow From Continuing Operating Activities"], curr_period.cfo), default=0.0) or 0.0
+        fcf_val = self._clean_float(_get_cf_val(["Free Cash Flow"], curr_period.fcf), default=0.0) or 0.0
 
         return StockbitFinancialMatrix(
             years=years,
@@ -472,10 +514,10 @@ class YFinanceProvider(BaseDataProvider):
             eps_matrix=eps_mat,
             revenue_matrix=rev_mat,
             income_statement_ttm=IncomeStatementTTM(
-                revenue_ttm=ttm_rev,
-                gross_profit_ttm=curr_period.gross_profit if curr_period.gross_profit > 0 else ttm_rev * 0.4,
-                ebitda_ttm=curr_period.ebitda if curr_period.ebitda > 0 else ttm_rev * 0.3,
-                net_income_ttm=ttm_ni
+                revenue_ttm=self._clean_float(ttm_rev, default=0.0) or 0.0,
+                gross_profit_ttm=self._clean_float(curr_period.gross_profit if curr_period.gross_profit > 0 else ttm_rev * 0.4, default=0.0) or 0.0,
+                ebitda_ttm=self._clean_float(curr_period.ebitda if curr_period.ebitda > 0 else ttm_rev * 0.3, default=0.0) or 0.0,
+                net_income_ttm=self._clean_float(ttm_ni, default=0.0) or 0.0
             ),
             balance_sheet_quarter=BalanceSheetQuarter(
                 cash=cash_val,
@@ -491,11 +533,11 @@ class YFinanceProvider(BaseDataProvider):
             ),
             per_share_metrics=PerShareFinancials(
                 eps_ttm=ttm_eps,
-                eps_annualised=round(ttm_eps * 1.06, 2),
-                revenue_per_share_ttm=round(ttm_rev / shares, 2) if shares > 0 else 0.0,
-                cash_per_share=round(cash_val / shares, 2) if shares > 0 else 0.0,
-                book_value_per_share=round(equity_val / shares, 2) if shares > 0 else 0.0,
-                fcf_per_share_ttm=round(fcf_val / shares, 2) if shares > 0 else 0.0
+                eps_annualised=self._clean_float(ttm_eps * 1.06, 2, default=0.0) or 0.0,
+                revenue_per_share_ttm=self._clean_float(ttm_rev / shares if shares > 0 else 0.0, 2, default=0.0) or 0.0,
+                cash_per_share=self._clean_float(cash_val / shares if shares > 0 else 0.0, 2, default=0.0) or 0.0,
+                book_value_per_share=self._clean_float(equity_val / shares if shares > 0 else 0.0, 2, default=0.0) or 0.0,
+                fcf_per_share_ttm=self._clean_float(fcf_val / shares if shares > 0 else 0.0, 2, default=0.0) or 0.0
             )
         )
 
