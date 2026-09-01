@@ -173,35 +173,43 @@ def test_ojk_banking_metrics_and_branching():
     assert len(bank_eval["bank_strengths"]) >= 3
 
 
-def test_institutional_provider_all_emitens_have_complete_data():
-    from app.data_providers.institutional_provider import InstitutionalDataProvider
+def test_analysis_pipeline_over_fixture_universe():
+    """Validates the scoring pipeline against deterministic test fixtures (no live source)."""
+    from tests.stub_provider import StubDataProvider
     from app.engines.scoring_engine import ScoringEngine
-    
-    provider = InstitutionalDataProvider()
+
+    provider = StubDataProvider()
     tickers = provider.list_all_tickers()
-    assert len(tickers) >= 10
-    assert "BBCA" in tickers
-    assert "BBRI" in tickers
-    assert "ADMR" in tickers
-    
-    bulk = provider.get_bulk_market_data()
-    assert len(bulk) >= 10
-    assert "BBCA" in bulk
-    
+    assert len(tickers) >= 5
+
     for t in tickers:
         raw = provider.get_keystats(t)
         assert raw is not None
         assert raw.current_period.eps > 0
         assert raw.current_period.revenue > 0
         assert raw.current_period.net_income > 0
-        assert raw.current_period.filing_date is not None  # Point-in-time preservation
+        assert raw.current_period.filing_date is not None
         assert raw.previous_period is not None
         assert len(raw.historical_periods) >= 3
-        assert raw.financial_matrix is not None
-        
+
         report = ScoringEngine.analyze_emiten(raw)
         assert report.eps > 0
         assert report.revenue > 0
         assert report.net_income > 0
-        assert report.financial_matrix is not None
-        assert len(report.financial_matrix.years) >= 5
+
+
+def test_institutional_provider_requires_real_source(monkeypatch):
+    """The production provider must refuse to serve data when no real source is configured."""
+    monkeypatch.delenv("EODHD_API_KEY", raising=False)
+    monkeypatch.delenv("SECTORS_API_KEY", raising=False)
+    from app.data_providers.institutional_provider import (
+        InstitutionalDataProvider,
+        DataSourceNotConfiguredError,
+    )
+
+    provider = InstitutionalDataProvider(sectors_api_key="", eodhd_api_key="demo")
+    assert provider.is_configured is False
+    with pytest.raises(DataSourceNotConfiguredError):
+        provider.get_keystats("BBRI")
+    with pytest.raises(DataSourceNotConfiguredError):
+        provider.list_all_tickers()

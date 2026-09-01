@@ -1,6 +1,9 @@
 """
-Main FastAPI Application Entrypoint for IDX Emiten KeyStats & Scoring Engine.
+Main FastAPI Application Entrypoint for BRIGHTS — BRI Stock Intelligence.
 """
+
+# Load .env before any router/service imports so providers see configured API keys.
+import app.config  # noqa: F401
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -17,8 +20,8 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
 app = FastAPI(
-    title="IDX Emiten KeyStats & Scoring Engine API",
-    description="Institutional-grade Fundamental Analysis, Multi-Model Valuation, and Scoring API for Indonesian Stock Exchange (IDX) emitens.",
+    title="BRIGHTS — BRI Stock Intelligence API",
+    description="BRIGHTS (BRI Stock Intelligence): Fundamental Analysis, Multi-Model Valuation, Shareholder Insight, and Scoring API for Indonesian Stock Exchange (IDX) emitens.",
     version="1.0.0"
 )
 
@@ -48,7 +51,7 @@ if os.path.exists(static_dir):
 
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "service": "idx-keystats-engine", "version": "1.0.0"}
+    return {"status": "healthy", "service": "brights-stock-intelligence", "version": "1.0.0"}
 
 
 @app.get("/")
@@ -57,6 +60,6 @@ def serve_index():
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {
-        "message": "Welcome to IDX Emiten KeyStats & Scoring Engine API",
+        "message": "Welcome to BRIGHTS — BRI Stock Intelligence API",
         "docs": "/docs"
     }

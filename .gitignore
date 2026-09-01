@@ -12,3 +12,8 @@ htmlcov/
 .idea/
 .agents/
 
+# Environment / secrets
+.env
+backend/.env
+*.env.local
+

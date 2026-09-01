@@ -6,13 +6,13 @@ from fastapi.testclient import TestClient
 from app.main import app
 from app.services.emiten_service import EmitenService
 from app.services.market_summary_service import MarketSummaryService
-from app.data_providers.institutional_provider import InstitutionalDataProvider
+from tests.stub_provider import StubDataProvider
 
 client = TestClient(app)
 
 
 def test_market_summary_service_unit():
-    inst_prov = InstitutionalDataProvider()
+    inst_prov = StubDataProvider()
     emiten_srv = EmitenService(provider=inst_prov)
     market_srv = MarketSummaryService(emiten_srv)
 

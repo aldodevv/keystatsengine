@@ -1,6 +1,6 @@
 /**
- * Frontend JavaScript for IDX Emiten KeyStats & Scoring Engine
- * Stockbit-Grade Fundamental Intelligence Terminal
+ * Frontend JavaScript for BRIGHTS — BRI Stock Intelligence
+ * BRIGHTS-Grade Fundamental Intelligence Terminal
  * With Live Multi-Source IDR ⇄ USD Currency Conversion
  */
 
@@ -582,6 +582,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // Render Stockbit-Grade Multi-Year Quarterly Financial Matrix (2020 - 2026+)
         renderStockbitFinancialMatrix(data, currentFinancialMatrixTab);
 
+        // Render Shareholder / Stakeholder Ownership Composition
+        renderOwnership(data.ownership);
+
         // High-Conviction Buy Engine & 10-Point Checklist
         if (data.buy_conviction) {
             const bc = data.buy_conviction;
@@ -718,6 +721,102 @@ document.addEventListener('DOMContentLoaded', () => {
             loadSingleEmiten(t);
         });
     });
+
+    // -------------------------------------------------------------
+    // 2.35 Shareholder / Stakeholder Ownership Composition
+    // -------------------------------------------------------------
+    function renderOwnership(ownership) {
+        const section = document.getElementById('ownership-section');
+        if (!section) return;
+
+        if (!ownership) {
+            section.classList.add('hidden');
+            return;
+        }
+        section.classList.remove('hidden');
+
+        const srcEl = document.getElementById('ownership-source');
+        if (srcEl) srcEl.textContent = `Sumber: ${ownership.source || '-'}`;
+
+        const pct = (v) => (v === null || v === undefined || isNaN(v)) ? '-' : `${Number(v).toFixed(2)}%`;
+        const stats = ownership.shares_statistics || {};
+
+        const summaryCards = [
+            { label: 'Free Float', value: pct(ownership.public_float_pct ?? stats.float_percentage), color: 'text-brand-400' },
+            { label: 'Insider / Pengendali', value: pct(ownership.insider_pct ?? stats.percent_insiders), color: 'text-amber-300' },
+            { label: 'Institusi', value: pct(ownership.institution_pct ?? stats.percent_institutions), color: 'text-cyan-400' },
+            { label: 'Pemerintah', value: pct(ownership.government_pct), color: 'text-purple-300' },
+        ];
+
+        const summaryEl = document.getElementById('ownership-summary');
+        if (summaryEl) {
+            summaryEl.innerHTML = summaryCards.map(c => `
+                <div class="bg-dark-bg/80 border border-dark-border rounded-xl p-3">
+                    <div class="text-[10px] text-slate-400 uppercase tracking-wide">${c.label}</div>
+                    <div class="text-lg font-bold ${c.color} mt-1">${c.value}</div>
+                </div>
+            `).join('');
+        }
+
+        // KSEI SID retail participation
+        const sidEl = document.getElementById('ownership-sid');
+        if (sidEl) {
+            const sid = ownership.sid_statistics;
+            if (sid && (sid.total_sid || sid.equity_sid)) {
+                const fmt = (n) => (n === null || n === undefined) ? '-' : Number(n).toLocaleString('id-ID');
+                sidEl.classList.remove('hidden');
+                sidEl.innerHTML = `
+                    <span class="text-slate-400">KSEI SID (Investor Terdaftar):</span>
+                    <strong class="text-emerald-400">Total ${fmt(sid.total_sid)}</strong>
+                    &middot; <strong class="text-emerald-400">Saham ${fmt(sid.equity_sid)}</strong>
+                    ${sid.as_of_date ? `<span class="text-slate-500">(per ${sid.as_of_date})</span>` : ''}
+                `;
+            } else {
+                sidEl.classList.add('hidden');
+                sidEl.innerHTML = '';
+            }
+        }
+
+        // Detailed holders (institutions + funds)
+        const holdersEl = document.getElementById('ownership-holders');
+        if (holdersEl) {
+            const holders = []
+                .concat(ownership.major_shareholders || [])
+                .concat(ownership.institutional_holders || [])
+                .concat(ownership.fund_holders || []);
+
+            if (holders.length === 0) {
+                holdersEl.innerHTML = '';
+            } else {
+                const rows = holders.map(h => `
+                    <tr>
+                        <td class="p-2 text-slate-200">${h.name || '-'}</td>
+                        <td class="p-2 text-slate-400">${h.category || '-'}</td>
+                        <td class="p-2 text-right font-mono ${h.is_controlling ? 'text-amber-300 font-bold' : 'text-slate-200'}">${pct(h.percentage)}</td>
+                    </tr>
+                `).join('');
+                holdersEl.innerHTML = `
+                    <div class="overflow-x-auto border border-dark-border rounded-xl">
+                        <table class="w-full text-xs">
+                            <thead class="bg-dark-bg/80 text-slate-400">
+                                <tr>
+                                    <th class="p-2 text-left font-semibold">Pemegang Saham</th>
+                                    <th class="p-2 text-left font-semibold">Kategori</th>
+                                    <th class="p-2 text-right font-semibold">Kepemilikan</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-dark-border/80">${rows}</tbody>
+                        </table>
+                    </div>
+                `;
+            }
+        }
+
+        const notesEl = document.getElementById('ownership-notes');
+        if (notesEl) {
+            notesEl.textContent = (ownership.notes && ownership.notes.length > 0) ? ownership.notes.join(' ') : '';
+        }
+    }
 
     // -------------------------------------------------------------
     // 2.4 Stockbit-Grade Multi-Year Quarterly Financial Matrix

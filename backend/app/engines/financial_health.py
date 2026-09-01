@@ -4,7 +4,7 @@ Computes Solvency, Liquidity, Altman Z-Score (Emerging Market),
 Piotroski F-Score (9 points), Beneish M-Score, and Cash Flow/Dividend Sustainability.
 """
 
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional
 from app.models.keystats import RawKeyStats, FinancialPeriod
 from app.models.xbrl import XBRLEntryPoint
 from app.models.score import (
@@ -87,9 +87,10 @@ class FinancialHealthEngine:
     @staticmethod
     def calculate_quality(raw: RawKeyStats) -> QualityScoreResult:
         curr = raw.current_period
-        prev = raw.previous_period or FinancialHealthEngine._create_mock_previous(curr)
+        prev = raw.previous_period
         
-        # 1. Piotroski F-Score (9 points)
+        # 1. Piotroski F-Score (9 points). When no prior period is reported, YoY-dependent
+        #    criteria are not awarded (no synthetic prior period is fabricated).
         f_score, details = FinancialHealthEngine._calculate_piotroski(curr, prev)
         
         # 2. Quality of Earnings: CFO to Net Income
@@ -159,11 +160,7 @@ class FinancialHealthEngine:
                 ni_growth = ((curr.net_income - prev.net_income) / prev.net_income) * 100
             if prev.eps > 0:
                 eps_growth = ((curr.eps - prev.eps) / prev.eps) * 100
-        else:
-            # Fallback historical growth estimate
-            rev_growth = 8.5
-            ni_growth = 10.2
-            eps_growth = 10.2
+        # When no real prior period is reported, growth stays 0.0 (no fabricated estimate).
             
         # 3Y CAGR calculation if historical_periods available
         rev_cagr = None
@@ -256,8 +253,14 @@ class FinancialHealthEngine:
         return z, zone
 
     @staticmethod
-    def _calculate_piotroski(curr: FinancialPeriod, prev: FinancialPeriod) -> Tuple[int, Dict[str, bool]]:
-        """Piotroski F-Score 9 criteria evaluation."""
+    def _calculate_piotroski(curr: FinancialPeriod, prev: Optional[FinancialPeriod]) -> Tuple[int, Dict[str, bool]]:
+        """
+        Piotroski F-Score 9 criteria evaluation.
+
+        The 5 YoY-dependent criteria (delta ROA, leverage, liquidity, dilution, margin,
+        asset turnover) require a real prior period. When none is reported they are recorded
+        as False rather than being inferred from a fabricated prior period.
+        """
         details = {}
         score = 0
         
@@ -273,16 +276,26 @@ class FinancialHealthEngine:
         details["positive_cfo"] = c2
         if c2: score += 1
         
+        # 4. CFO > Net Income (Quality of earnings) -- does not require prior period
+        c4 = cfo_curr > curr.net_income
+        details["cfo_greater_than_net_income"] = c4
+        if c4: score += 1
+
+        if prev is None:
+            # Record YoY-dependent criteria as not met (insufficient real history).
+            details["improving_roa"] = False
+            details["lower_leverage_ratio"] = False
+            details["improving_liquidity"] = False
+            details["no_share_dilution"] = False
+            details["improving_gross_margin"] = False
+            details["improving_asset_turnover"] = False
+            return score, details
+
         # 3. Delta ROA > 0 (ROA improving)
         roa_prev = (prev.net_income / prev.total_assets) if prev.total_assets > 0 else 0
         c3 = roa_curr > roa_prev
         details["improving_roa"] = c3
         if c3: score += 1
-        
-        # 4. CFO > Net Income (Quality of earnings)
-        c4 = cfo_curr > curr.net_income
-        details["cfo_greater_than_net_income"] = c4
-        if c4: score += 1
         
         # 5. Lower Long Term Debt ratio
         ltd_curr_ratio = (curr.long_term_debt / curr.total_assets) if curr.total_assets > 0 else 0
@@ -320,10 +333,16 @@ class FinancialHealthEngine:
         return score, details
 
     @staticmethod
-    def _calculate_beneish(curr: FinancialPeriod, prev: FinancialPeriod) -> Tuple[float, bool]:
-        """Calculates Beneish M-Score for earnings manipulation."""
+    def _calculate_beneish(curr: FinancialPeriod, prev: Optional[FinancialPeriod]) -> Tuple[Optional[float], bool]:
+        """
+        Calculates Beneish M-Score for earnings manipulation.
+        Returns (None, False) when a real prior period is unavailable, since the model
+        is intrinsically a year-over-year comparison.
+        """
+        if prev is None:
+            return None, False
         if prev.revenue <= 0 or curr.revenue <= 0 or prev.total_assets <= 0 or curr.total_assets <= 0:
-            return -2.5, False
+            return None, False
             
         dsri = ((curr.receivables / curr.revenue) / (prev.receivables / prev.revenue)) if (curr.revenue > 0 and prev.receivables > 0) else 1.0
         gmi = ((prev.gross_profit / prev.revenue) / (curr.gross_profit / curr.revenue)) if (curr.gross_profit > 0 and prev.revenue > 0) else 1.0
@@ -341,33 +360,3 @@ class FinancialHealthEngine:
         
         return m_score, is_manipulation
 
-    @staticmethod
-    def _create_mock_previous(curr: FinancialPeriod) -> FinancialPeriod:
-        """Fallback previous period derived from current (e.g. 7% lower revenue/profit)."""
-        return FinancialPeriod(
-            year=curr.year - 1,
-            revenue=curr.revenue * 0.93,
-            gross_profit=curr.gross_profit * 0.93,
-            operating_profit=curr.operating_profit * 0.92,
-            ebit=curr.ebit * 0.92,
-            ebitda=curr.ebitda * 0.92,
-            net_income=curr.net_income * 0.90,
-            eps=curr.eps * 0.90,
-            total_assets=curr.total_assets * 0.95,
-            current_assets=curr.current_assets * 0.95,
-            cash_and_equivalents=curr.cash_and_equivalents * 0.95,
-            inventory=curr.inventory * 0.95,
-            receivables=curr.receivables * 0.95,
-            total_liabilities=curr.total_liabilities * 0.96,
-            current_liabilities=curr.current_liabilities * 0.96,
-            total_debt=curr.total_debt * 0.98,
-            short_term_debt=curr.short_term_debt * 0.98,
-            long_term_debt=curr.long_term_debt * 0.98,
-            total_equity=curr.total_equity * 0.93,
-            retained_earnings=curr.retained_earnings * 0.90,
-            cfo=curr.cfo * 0.92,
-            capex=curr.capex * 0.95,
-            fcf=curr.fcf * 0.90,
-            dividends_paid=curr.dividends_paid * 0.90,
-            shares_outstanding=curr.shares_outstanding
-        )

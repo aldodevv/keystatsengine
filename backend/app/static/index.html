@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IDX Emiten KeyStats & Valuation Engine | Stockbit-Grade Fundamental Intelligence</title>
+    <title>BRIGHTS — BRI Stock Intelligence | Fundamental & Valuation Intelligence</title>
     <meta name="description"
         content="Platform analisis fundamental saham IDX, valuasi multi-model (DCF, Graham), financial health scoring, dan rekomendasi saham terbaik esok hari.">
 
@@ -12,7 +12,7 @@
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📈</text></svg>">
 
-    <!-- Google Fonts: Plus Jakarta Sans (Stockbit Style) & JetBrains Mono -->
+    <!-- Google Fonts: Plus Jakarta Sans (BRIGHTS Style) & JetBrains Mono -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
@@ -34,7 +34,7 @@
                             100: '#D1FAE5',
                             400: '#34D399',
                             500: '#10B981',
-                            600: '#00C274', // Stockbit Emerald Green
+                            600: '#00C274', // BRIGHTS Emerald Green
                             700: '#059669',
                             800: '#065F46',
                         },
@@ -67,102 +67,139 @@
 </head>
 
 <body
-    class="bg-dark-bg text-slate-100 font-sans min-h-screen flex flex-col antialiased selection:bg-brand-600 selection:text-white">
+    class="bg-dark-bg text-slate-100 font-sans min-h-screen antialiased selection:bg-brand-600 selection:text-white">
 
-    <!-- Top Navigation Header (Stockbit Style) -->
-    <header class="border-b border-dark-border bg-dark-card/90 backdrop-blur-md sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
-            <!-- Brand Logo -->
-            <div class="flex items-center gap-3 shrink-0">
+    <!-- Mobile sidebar backdrop -->
+    <div id="sidebar-backdrop" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm hidden lg:hidden"></div>
+
+    <!-- =========================== APP SHELL =========================== -->
+    <div class="flex min-h-screen">
+
+        <!-- LEFT SIDEBAR -->
+        <aside id="app-sidebar"
+            class="app-sidebar fixed lg:sticky top-0 z-50 h-screen w-64 shrink-0 bg-dark-card border-r border-dark-border flex flex-col -translate-x-full lg:translate-x-0 transition-transform duration-300">
+
+            <!-- Brand -->
+            <div class="h-16 flex items-center gap-3 px-4 border-b border-dark-border shrink-0">
                 <div
-                    class="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-brand-600 via-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-brand-600/25">
-                    <span class="font-bold text-white text-base sm:text-lg tracking-tight">KS</span>
+                    class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 via-emerald-500 to-teal-400 flex items-center justify-center shadow-lg shadow-brand-600/25">
+                    <span class="font-bold text-white text-lg tracking-tight">BR</span>
                 </div>
-                <div>
-                    <div class="flex items-center gap-2">
-                        <span class="font-extrabold text-base sm:text-lg text-white tracking-tight">KS<span
-                                class="text-brand-400 font-medium">Engine</span></span>
-                        <span
-                            class="hidden sm:inline-block px-2 py-0.5 text-[10px] font-mono font-bold bg-brand-500/10 text-brand-400 border border-brand-500/25 rounded-full">PRO</span>
-                    </div>
+                <div class="flex items-center gap-2">
+                    <span class="font-extrabold text-lg text-white tracking-tight">BRI<span
+                            class="text-brand-400 font-medium">GHTS</span></span>
+                    <span
+                        class="px-2 py-0.5 text-[10px] font-mono font-bold bg-brand-500/10 text-brand-400 border border-brand-500/25 rounded-full">PRO</span>
                 </div>
+                <button id="sidebar-close" class="ml-auto lg:hidden text-slate-400 hover:text-white p-1" aria-label="Tutup menu">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
             </div>
 
-            <!-- Tab Segmented Control Navigation (Horizontally scrollable on mobile) -->
-            <nav
-                class="flex items-center bg-dark-bg border border-dark-border p-1 rounded-xl overflow-x-auto no-scrollbar max-w-[55vw] sm:max-w-none">
-                <button id="tab-market"
-                    class="nav-tab active px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 text-white bg-brand-600 shadow-md shrink-0">
-                    <span>📊</span>
-                    <span>Ringkasan & Top Picks</span>
-                </button>
-                <button id="tab-calendar"
-                    class="nav-tab px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 text-slate-400 hover:text-white shrink-0">
-                    <span>📅</span>
-                    <span>Kalender Agenda</span>
-                </button>
-                <button id="tab-single"
-                    class="nav-tab px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 text-slate-400 hover:text-white shrink-0">
-                    <span>🔍</span>
-                    <span>Single Emiten</span>
-                </button>
-                <button id="tab-compare"
-                    class="nav-tab px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 text-slate-400 hover:text-white shrink-0">
-                    <span>⚖️</span>
-                    <span>Perbandingan</span>
-                </button>
-                <button id="tab-screener"
-                    class="nav-tab px-3 sm:px-4 py-1.5 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 flex items-center gap-1.5 text-slate-400 hover:text-white shrink-0">
-                    <span>⚡</span>
-                    <span>Screener</span>
-                </button>
+            <!-- Scrollable nav -->
+            <nav class="flex-1 overflow-y-auto no-scrollbar px-3 py-4 space-y-6">
+                <!-- Group: Market -->
+                <div class="space-y-1">
+                    <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Market Suite</p>
+                    <button id="tab-market"
+                        class="nav-tab active w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-3 text-white bg-brand-600 shadow-md">
+                        <span class="text-base">📊</span>
+                        <span>Ringkasan &amp; Top Picks</span>
+                    </button>
+                    <button id="tab-single"
+                        class="nav-tab w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-3 text-slate-400 hover:text-white hover:bg-dark-surface">
+                        <span class="text-base">🔍</span>
+                        <span>Analisis Emiten</span>
+                    </button>
+                    <button id="tab-compare"
+                        class="nav-tab w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-3 text-slate-400 hover:text-white hover:bg-dark-surface">
+                        <span class="text-base">⚖️</span>
+                        <span>Perbandingan</span>
+                    </button>
+                    <button id="tab-screener"
+                        class="nav-tab w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-3 text-slate-400 hover:text-white hover:bg-dark-surface">
+                        <span class="text-base">⚡</span>
+                        <span>Screener</span>
+                    </button>
+                </div>
+
+                <!-- Group: Research -->
+                <div class="space-y-1">
+                    <p class="px-3 text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Riset &amp; Katalis</p>
+                    <button id="tab-calendar"
+                        class="nav-tab w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-3 text-slate-400 hover:text-white hover:bg-dark-surface">
+                        <span class="text-base">📅</span>
+                        <span>Kalender Agenda</span>
+                    </button>
+                    <button id="fx-open-btn"
+                        class="w-full px-3 py-2 rounded-lg text-sm font-semibold transition-all duration-200 flex items-center gap-3 text-slate-400 hover:text-white hover:bg-dark-surface">
+                        <span class="text-base">💱</span>
+                        <span>Konversi Kurs</span>
+                    </button>
+                </div>
             </nav>
 
-            <!-- Currency Tools & Status Indicators -->
-            <div class="flex items-center gap-2 shrink-0">
-                <!-- Live Kurs Indicator & Converter Modal Trigger -->
-                <button id="fx-rate-pill"
-                    class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 rounded-xl bg-dark-bg border border-amber-500/30 hover:border-amber-400 text-amber-300 text-xs font-mono transition shadow-sm cursor-pointer group"
-                    title="Klik untuk membuka Kalkulator Konversi IDR ⇄ USD">
-                    <span class="w-2 h-2 rounded-full bg-amber-400 pulse-amber"></span>
-                    <span id="nav-fx-rate-text" class="font-bold">1 USD = Rp 17,712</span>
-                    <span class="text-[10px] text-slate-400 hidden xl:inline group-hover:text-white">💱 Kurs</span>
-                </button>
-
-                <!-- Currency Switcher Toggle -->
-                <div
-                    class="flex items-center bg-dark-bg border border-dark-border p-0.5 rounded-xl font-mono text-xs font-bold shrink-0">
-                    <button id="currency-btn-idr"
-                        class="currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-white bg-brand-600 shadow-sm flex items-center gap-1"
-                        data-currency="IDR" title="Tampilkan Nilai dalam Rupiah (IDR)">
-                        <span>Rp</span><span class="hidden sm:inline">IDR</span>
-                    </button>
-                    <button id="currency-btn-usd"
-                        class="currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-1"
-                        data-currency="USD" title="Tampilkan Nilai dalam Dolar AS (USD)">
-                        <span>$</span><span class="hidden sm:inline">USD</span>
-                    </button>
-                </div>
-
-                <!-- Status Indicator -->
-                <div
-                    class="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-brand-500/10 border border-brand-500/25 text-brand-400 text-xs font-mono">
+            <!-- Sidebar footer: data source status -->
+            <div class="px-3 py-3 border-t border-dark-border shrink-0 space-y-2">
+                <div class="flex items-center gap-2 px-2 py-1.5 rounded-lg bg-brand-500/10 border border-brand-500/20 text-brand-400 text-[11px] font-mono">
                     <span class="w-2 h-2 rounded-full bg-brand-400 pulse-green"></span>
-                    <span>LIVE IDX</span>
+                    <span>LIVE IDX DATA</span>
                 </div>
             </div>
-        </div>
-    </header>
+        </aside>
 
-    <!-- Main Content Container -->
-    <main class="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6">
+        <!-- RIGHT: content column -->
+        <div class="flex-1 min-w-0 flex flex-col">
+
+            <!-- TOP NAVBAR -->
+            <header class="h-16 sticky top-0 z-30 border-b border-dark-border bg-dark-card/90 backdrop-blur-md flex items-center gap-3 px-4 sm:px-6">
+                <!-- Mobile hamburger -->
+                <button id="sidebar-open" class="lg:hidden text-slate-300 hover:text-white p-1" aria-label="Buka menu">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+                </button>
+
+                <!-- Global search -->
+                <div class="relative flex-1 max-w-md">
+                    <span class="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">🔍</span>
+                    <input type="text" id="global-search-input"
+                        placeholder="Cari kode saham (BBRI, BBCA, ASII)..."
+                        class="w-full bg-dark-bg border border-dark-border rounded-xl pl-9 pr-3 py-2 text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-brand-500 font-mono uppercase tracking-wide">
+                </div>
+
+                <div class="ml-auto flex items-center gap-2 shrink-0">
+                    <!-- Live Kurs pill -->
+                    <button id="fx-rate-pill"
+                        class="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-dark-bg border border-amber-500/30 hover:border-amber-400 text-amber-300 text-xs font-mono transition shadow-sm cursor-pointer group"
+                        title="Klik untuk membuka Kalkulator Konversi IDR ⇄ USD">
+                        <span class="w-2 h-2 rounded-full bg-amber-400 pulse-amber"></span>
+                        <span id="nav-fx-rate-text" class="font-bold">1 USD = Rp 17,712</span>
+                    </button>
+
+                    <!-- Currency toggle -->
+                    <div class="flex items-center bg-dark-bg border border-dark-border p-0.5 rounded-xl font-mono text-xs font-bold shrink-0">
+                        <button id="currency-btn-idr"
+                            class="currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-white bg-brand-600 shadow-sm flex items-center gap-1"
+                            data-currency="IDR" title="Rupiah (IDR)">
+                            <span>Rp</span><span class="hidden sm:inline">IDR</span>
+                        </button>
+                        <button id="currency-btn-usd"
+                            class="currency-toggle-btn px-2 sm:px-2.5 py-1 rounded-lg transition-all text-slate-400 hover:text-white flex items-center gap-1"
+                            data-currency="USD" title="Dolar AS (USD)">
+                            <span>$</span><span class="hidden sm:inline">USD</span>
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Main Content Container -->
+            <main class="flex-1 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-6">
 
         <!-- ========================================================================= -->
         <!-- TAB 0: MARKET SUMMARY & REKOMENDASI SAHAM TERBAIK ESOK HARI               -->
         <!-- ========================================================================= -->
         <section id="section-market" class="tab-content block space-y-6 sm:space-y-8">
 
-            <!-- Hero Banner (Stockbit Friendly Welcome) -->
+            <!-- Hero Banner (BRIGHTS Friendly Welcome) -->
             <div
                 class="bg-gradient-to-r from-emerald-950/40 via-dark-card to-dark-surface/40 border border-brand-500/25 rounded-2xl sm:rounded-3xl p-5 sm:p-7 shadow-xl relative overflow-hidden">
                 <div
@@ -640,7 +677,7 @@
 
 
         <!-- ========================================================================= -->
-        <!-- TAB 1: SINGLE EMITEN ANALYSIS (STOCKBIT COMPANY PAGE STYLE)               -->
+        <!-- TAB 1: SINGLE EMITEN ANALYSIS (BRIGHTS COMPANY PAGE STYLE)               -->
         <!-- ========================================================================= -->
         <section id="section-single" class="tab-content hidden space-y-6">
 
@@ -696,7 +733,7 @@
             <!-- Single Emiten Output View -->
             <div id="single-report-container" class="space-y-6">
 
-                <!-- Stockbit-Style Header Banner Card -->
+                <!-- BRIGHTS-Style Header Banner Card -->
                 <div
                     class="bg-gradient-to-br from-dark-card via-dark-card to-dark-surface/60 border border-dark-border rounded-2xl p-5 sm:p-6 shadow-xl relative overflow-hidden">
                     <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-6 relative z-10">
@@ -890,7 +927,7 @@
                     </div>
                 </div>
 
-                <!-- 4 Core Pillar Ratio Cards (Stockbit Cards) -->
+                <!-- 4 Core Pillar Ratio Cards (BRIGHTS Cards) -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
 
                     <!-- Pillar 1: Valuation -->
@@ -1060,7 +1097,7 @@
                 </div>
 
                 <!-- ========================================================================= -->
-                <!-- STOCKBIT-GRADE MULTI-YEAR QUARTERLY FINANCIAL MATRIX (2020 - 2026+)        -->
+                <!-- BRIGHTS-GRADE MULTI-YEAR QUARTERLY FINANCIAL MATRIX (2020 - 2026+)        -->
                 <!-- ========================================================================= -->
                 <div class="w-full bg-dark-card border border-dark-border rounded-2xl p-4 sm:p-6 shadow-xl space-y-5">
                     <div
@@ -1068,7 +1105,7 @@
                         <div>
                             <div class="flex items-center gap-2">
                                 <span
-                                    class="px-2.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] font-mono font-bold tracking-wider uppercase border border-brand-500/30">Stockbit
+                                    class="px-2.5 py-0.5 rounded bg-brand-500/20 text-brand-300 text-[10px] font-mono font-bold tracking-wider uppercase border border-brand-500/30">BRIGHTS
                                     Pro Financials</span>
                                 <h2 class="font-bold text-sm sm:text-base text-white flex items-center gap-2">
                                     <span>📊</span> Laporan Keuangan Multi-Tahun & Kuartalan (2020 - 2026)
@@ -1116,7 +1153,7 @@
                             </table>
                         </div>
 
-                        <!-- Right 4 cols: Stockbit-Grade Breakdown Panels (TTM, Balance Sheet, Per Share) -->
+                        <!-- Right 4 cols: BRIGHTS-Grade Breakdown Panels (TTM, Balance Sheet, Per Share) -->
                         <div class="xl:col-span-4 space-y-4">
                             <!-- Income Statement (TTM) -->
                             <div class="bg-dark-bg/90 border border-dark-border rounded-xl p-4 space-y-2.5">
@@ -1378,6 +1415,27 @@
                         class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2.5 text-center text-xs font-mono">
                         <!-- Injected dynamically -->
                     </div>
+                </div>
+
+                <!-- Shareholder / Stakeholder Ownership Composition -->
+                <div id="ownership-section"
+                    class="bg-dark-card border border-dark-border rounded-2xl p-5 shadow-xl space-y-4 hidden">
+                    <div class="flex items-center justify-between border-b border-dark-border pb-3">
+                        <h2 class="font-bold text-sm text-white flex items-center gap-2">
+                            <span>👥</span> Pemegang Saham &amp; Struktur Kepemilikan
+                        </h2>
+                        <span id="ownership-source"
+                            class="text-[10px] text-slate-500 font-mono">Sumber: -</span>
+                    </div>
+                    <div id="ownership-summary"
+                        class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center text-xs font-mono">
+                        <!-- Injected dynamically -->
+                    </div>
+                    <div id="ownership-sid" class="text-xs text-slate-300 font-mono hidden"></div>
+                    <div id="ownership-holders" class="space-y-2">
+                        <!-- Injected dynamically -->
+                    </div>
+                    <p id="ownership-notes" class="text-[11px] text-slate-500 italic"></p>
                 </div>
 
                 <!-- AI / Algorithmic Fundamental Synthesis -->
@@ -1743,11 +1801,11 @@
 
     </main>
 
-    <!-- Footer (Stockbit Style) -->
+    <!-- Footer (BRIGHTS Style) -->
     <footer class="border-t border-dark-border bg-dark-card/60 py-6 mt-12 text-center text-xs text-slate-400 font-mono">
         <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-3">
             <div>
-                IDX KeyStats & Fundamental Engine • Standardized for Professional & Retail Investors
+                BRIGHTS — BRI Stock Intelligence • Standardized for Professional & Retail Investors
             </div>
             <div class="flex items-center gap-3 text-slate-400">
                 <span>FastAPI Backend</span>

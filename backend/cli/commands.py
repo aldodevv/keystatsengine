@@ -1,5 +1,5 @@
 """
-CLI Command Line Interface for IDX Emiten KeyStats & Scoring Engine.
+CLI Command Line Interface for BRIGHTS — BRI Stock Intelligence.
 Usage:
     python -m cli.commands calc BBRI
     python -m cli.commands compare BBCA BBRI BMRI
@@ -15,7 +15,7 @@ from app.services.screener_service import ScreenerService
 from app.models.screener import ScreenerCriteria, ScreenerPreset
 from cli.terminal_app import TerminalRenderer, console
 
-app = typer.Typer(help="IDX Emiten Fundamental KeyStats & Scoring Engine CLI")
+app = typer.Typer(help="BRIGHTS — BRI Stock Intelligence CLI (Fundamental Analysis, Valuation & Shareholder Insight)")
 
 # Initialize services
 emiten_service = EmitenService()
@@ -27,7 +27,7 @@ screener_service = ScreenerService(emiten_service)
 def calc(
     ticker: str = typer.Argument(..., help="IDX Stock Ticker (e.g. BBRI, BBCA, ASII, ADRO)"),
     price: Optional[float] = typer.Option(None, "--price", "-p", help="Simulate with custom/override market price (IDR)"),
-    live: bool = typer.Option(True, "--live/--cached", help="Fetch live realtime quote from IDX/Yahoo Finance")
+    live: bool = typer.Option(True, "--live/--cached", help="Fetch live realtime quote from the IDX data source")
 ):
     """Deep-dive fundamental analysis & valuation with live real-time price or simulation."""
     status_msg = f"[bold cyan]Fetching Realtime KeyStats for {ticker.upper()}..." if not price else f"[bold cyan]Simulating KeyStats for {ticker.upper()} at Rp{price:,.0f}..."
@@ -39,6 +39,23 @@ def calc(
         raise typer.Exit(code=1)
         
     TerminalRenderer.render_single_emiten(report)
+
+
+@app.command(name="shareholders")
+def shareholders(
+    ticker: str = typer.Argument(..., help="IDX Stock Ticker (e.g. BBRI, BBCA, ASII)")
+):
+    """Show real shareholder / stakeholder ownership composition, free float, holders, and KSEI SID stats."""
+    with console.status(f"[bold cyan]Fetching shareholder composition for {ticker.upper()}..."):
+        ownership = emiten_service.get_shareholders(ticker)
+
+    if not ownership:
+        console.print(
+            f"[bold yellow]⚠️ Data pemegang saham untuk '{ticker.upper()}' tidak tersedia dari sumber data real yang terkonfigurasi.[/bold yellow]"
+        )
+        raise typer.Exit(code=1)
+
+    TerminalRenderer.render_shareholders(ownership)
 
 
 @app.command(name="compare")

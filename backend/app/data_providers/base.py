@@ -6,6 +6,7 @@ from abc import ABC, abstractmethod
 from typing import Optional, List, Dict, Any
 from app.models.keystats import RawKeyStats
 from app.models.chart import CandleDataPoint
+from app.models.ownership import OwnershipBreakdown
 
 
 class BaseDataProvider(ABC):
@@ -32,6 +33,18 @@ class BaseDataProvider(ABC):
     @abstractmethod
     def get_historical_ohlcv(self, ticker: str, timeframe: str = "1y") -> List[CandleDataPoint]:
         """Fetches corporate-action adjusted historical daily OHLCV candlestick data."""
+        pass
+
+    @abstractmethod
+    def get_shareholders(self, ticker: str) -> Optional[OwnershipBreakdown]:
+        """
+        Fetches real shareholder / stakeholder ownership composition for a ticker:
+        major shareholders, ownership percentages, free float, institutional/fund holders,
+        and (when available) KSEI SID retail-participation statistics.
+
+        Returns None when no real data source can supply the data. Implementations MUST NOT
+        fabricate ownership figures.
+        """
         pass
 
     def get_bulk_market_data(self) -> Dict[str, Dict[str, Any]]:

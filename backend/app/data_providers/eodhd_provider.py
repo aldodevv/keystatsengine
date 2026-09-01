@@ -12,6 +12,12 @@ import requests
 from app.data_providers.base import BaseDataProvider
 from app.models.keystats import RawKeyStats, FinancialPeriod, BankSpecificMetrics
 from app.models.chart import CandleDataPoint
+from app.models.ownership import (
+    OwnershipBreakdown,
+    ShareholderEntry,
+    SharesStatistics,
+    SIDStatistics,
+)
 from app.models.financial_matrix import (
     StockbitFinancialMatrix,
     QuarterlyDataPoint,
@@ -28,8 +34,29 @@ class EODHDProvider(BaseDataProvider):
     def __init__(self, api_key: Optional[str] = None):
         self.api_key = api_key or os.getenv("EODHD_API_KEY", "demo")
         self._cache: Dict[str, RawKeyStats] = {}
+        self._fundamentals_cache: Dict[str, Dict[str, Any]] = {}
         self._bulk_cache: Optional[Dict[str, Dict[str, Any]]] = None
         self._bulk_cache_time: Optional[datetime.datetime] = None
+        self._symbol_cache: Optional[List[str]] = None
+
+    def _fetch_fundamentals_raw(self, clean_ticker: str) -> Optional[Dict[str, Any]]:
+        """Fetches and caches the raw EODHD /fundamentals JSON for a ticker."""
+        if clean_ticker in self._fundamentals_cache:
+            return self._fundamentals_cache[clean_ticker]
+
+        symbol = f"{clean_ticker}.JK"
+        url = f"{self.BASE_URL}/fundamentals/{symbol}?api_token={self.api_key}"
+        try:
+            resp = requests.get(url, timeout=6)
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            if not data or not isinstance(data, dict):
+                return None
+            self._fundamentals_cache[clean_ticker] = data
+            return data
+        except Exception:
+            return None
 
     def get_keystats(
         self,
@@ -57,14 +84,8 @@ class EODHDProvider(BaseDataProvider):
 
     def _fetch_fundamentals_eodhd(self, clean_ticker: str) -> Optional[RawKeyStats]:
         symbol = f"{clean_ticker}.JK"
-        url = f"{self.BASE_URL}/fundamentals/{symbol}?api_token={self.api_key}"
-        
-        resp = requests.get(url, timeout=6)
-        if resp.status_code != 200:
-            return None
-            
-        data = resp.json()
-        if not data or not isinstance(data, dict):
+        data = self._fetch_fundamentals_raw(clean_ticker)
+        if not data:
             return None
             
         general = data.get("General", {})
@@ -264,39 +285,60 @@ class EODHDProvider(BaseDataProvider):
         curr: FinancialPeriod,
         balance_dict: Dict[str, Any],
         income_dict: Dict[str, Any]
-    ) -> BankSpecificMetrics:
-        # Calculate OJK / BI banking ratios from financial period
-        earning_assets = curr.total_assets * 0.85 if curr.total_assets > 0 else 1.0
-        total_loans = curr.total_assets * 0.65 if curr.total_assets > 0 else 1.0
-        dpk = curr.total_liabilities * 0.80 if curr.total_liabilities > 0 else 1.0
-        casa = dpk * 0.68
-        
-        net_interest_income = curr.gross_profit if curr.gross_profit > 0 else (curr.revenue * 0.7)
-        nim = (net_interest_income / earning_assets * 100) if earning_assets > 0 else 5.2
-        ldr = (total_loans / dpk * 100) if dpk > 0 else 83.5
-        
-        operating_expense = curr.revenue - curr.operating_profit if curr.revenue > curr.operating_profit else (curr.revenue * 0.65)
-        bopo = (operating_expense / curr.revenue * 100) if curr.revenue > 0 else 64.0
-        
-        rwa = curr.total_assets * 0.60
-        car = (curr.total_equity / rwa * 100) if rwa > 0 else 20.5
-        
-        npl_gross = 2.1
-        npl_net = 0.6
-        cost_of_credit = 1.2
-        
+    ) -> Optional[BankSpecificMetrics]:
+        """
+        Derives OJK / Bank Indonesia banking ratios ONLY from real reported line items.
+
+        Generic fundamentals feeds do not expose OJK-specific disclosures such as NPL, CAR,
+        CASA or cost-of-credit for IDX banks; those are left as None rather than fabricated.
+        NIM and LDR are computed only when the underlying real figures are reported.
+        Returns None when no real banking line items are available at all.
+        """
+        earning_assets = curr.earning_assets if curr.earning_assets > 0 else None
+        total_loans = curr.total_loans if curr.total_loans > 0 else None
+        dpk = curr.deposits_dpk if curr.deposits_dpk > 0 else None
+        net_interest_income = curr.net_interest_income if curr.net_interest_income > 0 else None
+
+        nim = None
+        if net_interest_income and earning_assets:
+            nim = round(net_interest_income / earning_assets * 100, 2)
+
+        ldr = None
+        if total_loans and dpk:
+            ldr = round(total_loans / dpk * 100, 2)
+
+        casa = None
+        if curr.casa_deposits > 0 and dpk:
+            casa = round(curr.casa_deposits / dpk * 100, 2)
+
+        car = None
+        if curr.regulatory_capital > 0 and curr.risk_weighted_assets > 0:
+            car = round(curr.regulatory_capital / curr.risk_weighted_assets * 100, 2)
+
+        npl_gross = None
+        if curr.npl_gross_amount > 0 and total_loans:
+            npl_gross = round(curr.npl_gross_amount / total_loans * 100, 2)
+
+        npl_net = None
+        if curr.npl_net_amount > 0 and total_loans:
+            npl_net = round(curr.npl_net_amount / total_loans * 100, 2)
+
+        # If no real banking line items are present, do not emit a fabricated metrics block.
+        if not any([earning_assets, total_loans, dpk, net_interest_income, car]):
+            return None
+
         return BankSpecificMetrics(
-            car=round(car, 2),
+            car=car,
             npl_gross=npl_gross,
             npl_net=npl_net,
-            nim=round(nim, 2),
-            bopo=round(bopo, 2),
-            ldr=round(ldr, 2),
-            casa=round((casa / dpk * 100) if dpk > 0 else 68.0, 2),
-            cost_of_credit=cost_of_credit,
+            nim=nim,
+            bopo=None,
+            ldr=ldr,
+            casa=casa,
+            cost_of_credit=None,
             earning_assets=earning_assets,
             total_loans=total_loans,
-            deposits_dpk=dpk
+            deposits_dpk=dpk,
         )
 
     def _build_financial_matrix(
@@ -306,23 +348,68 @@ class EODHDProvider(BaseDataProvider):
         cf_q: Dict[str, Any],
         shares: float,
         price: float
-    ) -> StockbitFinancialMatrix:
-        years = [2026, 2025, 2024, 2023, 2022, 2021, 2020]
-        net_income_matrix = {}
-        eps_matrix = {}
-        revenue_matrix = {}
-        
-        for y in years:
-            net_income_matrix[str(y)] = QuarterlyDataPoint()
-            eps_matrix[str(y)] = QuarterlyDataPoint()
-            revenue_matrix[str(y)] = QuarterlyDataPoint()
-            
+    ) -> Optional[StockbitFinancialMatrix]:
+        """
+        Builds a multi-year quarterly matrix from REAL EODHD quarterly statements.
+        Each reported quarter is placed in its calendar quarter slot; missing quarters stay None.
+        Returns None when no real quarterly data is available.
+        """
+        if not income_q:
+            return None
+
+        def _q_slot(month: int) -> str:
+            if month <= 3:
+                return "q1"
+            if month <= 6:
+                return "q2"
+            if month <= 9:
+                return "q3"
+            return "q4"
+
+        net_income_matrix: Dict[str, QuarterlyDataPoint] = {}
+        eps_matrix: Dict[str, QuarterlyDataPoint] = {}
+        revenue_matrix: Dict[str, QuarterlyDataPoint] = {}
+        years_seen = set()
+
+        for date_str, inc in income_q.items():
+            if not isinstance(inc, dict) or len(date_str) < 7:
+                continue
+            try:
+                year = date_str[:4]
+                month = int(date_str[5:7])
+            except (ValueError, IndexError):
+                continue
+            if not year.isdigit():
+                continue
+
+            years_seen.add(int(year))
+            slot = _q_slot(month)
+
+            rev = inc.get("totalRevenue") or inc.get("revenue")
+            ni = inc.get("netIncome") or inc.get("netIncomeCommonStock")
+
+            net_income_matrix.setdefault(year, QuarterlyDataPoint())
+            revenue_matrix.setdefault(year, QuarterlyDataPoint())
+            eps_matrix.setdefault(year, QuarterlyDataPoint())
+
+            if ni is not None:
+                ni_val = float(ni)
+                setattr(net_income_matrix[year], slot, ni_val)
+                if shares > 0:
+                    setattr(eps_matrix[year], slot, round(ni_val / shares, 2))
+            if rev is not None:
+                setattr(revenue_matrix[year], slot, float(rev))
+
+        if not years_seen:
+            return None
+
+        years = sorted(years_seen, reverse=True)
         return StockbitFinancialMatrix(
             years=years,
             currency="IDR",
             net_income_matrix=net_income_matrix,
             eps_matrix=eps_matrix,
-            revenue_matrix=revenue_matrix
+            revenue_matrix=revenue_matrix,
         )
 
     def get_historical_ohlcv(self, ticker: str, timeframe: str = "1y") -> List[CandleDataPoint]:
@@ -411,11 +498,140 @@ class EODHDProvider(BaseDataProvider):
         return super().get_bulk_market_data()
 
     def list_all_tickers(self) -> List[str]:
-        return [
-            "BBCA", "BBRI", "BMRI", "BBNI", "ASII", "ADRO", "TLKM", "ICBP",
-            "UNTR", "CPIN", "ADMR", "KLBF", "BRIS", "PTBA", "PGAS", "JSMR",
-            "ANTM", "MAPI", "BSDE", "CTRA"
-        ]
+        """
+        Fetches the real list of common-stock symbols on the IDX (.JK exchange) from EODHD.
+        Returns an empty list when the live source is unavailable (no fabricated symbols).
+        """
+        if self._symbol_cache is not None:
+            return self._symbol_cache
+
+        url = f"{self.BASE_URL}/exchange-symbol-list/JK?fmt=json&api_token={self.api_key}"
+        try:
+            resp = requests.get(url, timeout=8)
+            if resp.status_code == 200:
+                data = resp.json()
+                if isinstance(data, list) and data:
+                    symbols = []
+                    for item in data:
+                        code = item.get("Code")
+                        sec_type = (item.get("Type") or "").lower()
+                        if code and (not sec_type or "common" in sec_type or "stock" in sec_type):
+                            symbols.append(code.upper())
+                    if symbols:
+                        self._symbol_cache = symbols
+                        return symbols
+        except Exception:
+            pass
+
+        return []
+
+    def get_shareholders(self, ticker: str) -> Optional[OwnershipBreakdown]:
+        """
+        Fetches REAL shareholder / ownership composition from the EODHD /fundamentals
+        SharesStats and Holders blocks. Returns None when no real data is available.
+        No ownership figures are fabricated; unavailable fields stay None/empty.
+        """
+        clean_ticker = ticker.upper().replace(".JK", "").strip()
+        data = self._fetch_fundamentals_raw(clean_ticker)
+        if not data:
+            return None
+
+        general = data.get("General", {}) or {}
+        shares_stats = data.get("SharesStats", {}) or {}
+        holders = data.get("Holders", {}) or {}
+
+        name = general.get("Name") or f"{clean_ticker} Tbk"
+
+        # --- Share structure statistics ---
+        stats_model = None
+        so = shares_stats.get("SharesOutstanding")
+        sf = shares_stats.get("SharesFloat")
+        pct_insiders = shares_stats.get("PercentInsiders")
+        pct_institutions = shares_stats.get("PercentInstitutions")
+        shares_short = shares_stats.get("SharesShort")
+
+        float_pct = None
+        if so and sf:
+            try:
+                float_pct = round(float(sf) / float(so) * 100, 2)
+            except (ValueError, ZeroDivisionError):
+                float_pct = None
+
+        if any(v is not None for v in (so, sf, pct_insiders, pct_institutions, shares_short)):
+            stats_model = SharesStatistics(
+                shares_outstanding=self._to_float_or_none(so),
+                shares_float=self._to_float_or_none(sf),
+                float_percentage=float_pct,
+                percent_insiders=self._to_float_or_none(pct_insiders),
+                percent_institutions=self._to_float_or_none(pct_institutions),
+                shares_short=self._to_float_or_none(shares_short),
+            )
+
+        # --- Detailed holders (Institutions & Funds) ---
+        institutional_holders = self._parse_holder_block(holders.get("Institutions", {}), "Institution")
+        fund_holders = self._parse_holder_block(holders.get("Funds", {}), "Fund")
+
+        if not any([stats_model, institutional_holders, fund_holders]):
+            # Nothing real to report.
+            return None
+
+        insider_pct = self._to_float_or_none(pct_insiders)
+        institution_pct = self._to_float_or_none(pct_institutions)
+        public_float_pct = float_pct
+
+        notes: List[str] = []
+        if not institutional_holders and not fund_holders:
+            notes.append("Detailed holder list not provided by source; only aggregate share statistics available.")
+
+        return OwnershipBreakdown(
+            ticker=clean_ticker,
+            name=name,
+            source="EODHD",
+            shares_statistics=stats_model,
+            public_float_pct=public_float_pct,
+            insider_pct=insider_pct,
+            institution_pct=institution_pct,
+            government_pct=None,
+            major_shareholders=[],
+            institutional_holders=institutional_holders,
+            fund_holders=fund_holders,
+            sid_statistics=None,
+            is_real_data=True,
+            notes=notes,
+        )
+
+    def _parse_holder_block(self, block: Any, category: str) -> List[ShareholderEntry]:
+        """Parses an EODHD Holders sub-block (dict keyed by index) into ShareholderEntry list."""
+        entries: List[ShareholderEntry] = []
+        if not isinstance(block, dict):
+            return entries
+        for _, holder in block.items():
+            if not isinstance(holder, dict):
+                continue
+            hname = holder.get("name") or holder.get("Name")
+            if not hname:
+                continue
+            # EODHD reports totalShares as a percentage of outstanding (e.g. 5.23 == 5.23%)
+            pct = self._to_float_or_none(holder.get("totalShares"))
+            shares = self._to_float_or_none(holder.get("currentShares"))
+            entries.append(ShareholderEntry(
+                name=str(hname),
+                category=category,
+                shares=shares,
+                percentage=pct,
+                is_controlling=bool(pct is not None and pct > 50.0),
+                filing_date=holder.get("date") or holder.get("Date"),
+            ))
+        return entries
+
+    @staticmethod
+    def _to_float_or_none(value: Any) -> Optional[float]:
+        if value is None or value == "":
+            return None
+        try:
+            return float(value)
+        except (ValueError, TypeError):
+            return None
 
     def search_tickers(self, query: str) -> List[RawKeyStats]:
         q = query.upper().strip()

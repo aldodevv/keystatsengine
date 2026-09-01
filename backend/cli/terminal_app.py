@@ -1,5 +1,5 @@
 """
-Terminal Rich Renderer for Emiten KeyStats, Radar Charts, Comparison Matrix, and Screener.
+Terminal Rich Renderer for BRIGHTS — BRI Stock Intelligence (KeyStats, Radar, Comparison, Screener).
 """
 
 from typing import Optional
@@ -14,6 +14,7 @@ from app.models.score import EmitenAnalysisReport, VerdictAction, HealthZone
 from app.models.screener import ComparisonResponse, ScreenerResponse
 from app.models.conviction import BuyZone, ConvictionTier
 from app.models.chart import ChartResponse
+from app.models.ownership import OwnershipBreakdown
 
 
 console = Console()
@@ -48,7 +49,7 @@ class TerminalRenderer:
         header_text.append(f"  Action Verdict: ", style="bold")
         header_text.append(f" {report.verdict.value} ", style=verdict_color)
         
-        console.print(Panel(header_text, title="[bold cyan]🏛️ IDX EMITEN KEYSTATS & VALUATION REPORT (REALTIME ACTIVE)[/bold cyan]", border_style="cyan", box=box.ROUNDED))
+        console.print(Panel(header_text, title="[bold cyan]🏛️ BRIGHTS — BRI STOCK INTELLIGENCE | VALUATION REPORT (REALTIME ACTIVE)[/bold cyan]", border_style="cyan", box=box.ROUNDED))
 
         # 4 Core KPI Tables
         # Table 1: Valuation
@@ -349,6 +350,58 @@ class TerminalRenderer:
                 flags_text.append(f"  • {rf}\n", style="magenta")
                 
         console.print(Panel(flags_text, title="[bold]🧠 AI / Algorithmic Fundamental Synthesis[/bold]", border_style="dim", box=box.ROUNDED))
+
+    @staticmethod
+    def render_shareholders(ownership: OwnershipBreakdown):
+        def pct(v):
+            return f"{v:.2f}%" if v is not None else "-"
+
+        stats = ownership.shares_statistics
+        summary = Table(
+            title=f"[bold cyan]👥 STRUKTUR KEPEMILIKAN & PEMEGANG SAHAM — {ownership.ticker} ({ownership.name})[/bold cyan]",
+            box=box.ROUNDED,
+        )
+        summary.add_column("Free Float", justify="center")
+        summary.add_column("Insider / Pengendali", justify="center")
+        summary.add_column("Institusi", justify="center")
+        summary.add_column("Pemerintah", justify="center")
+        summary.add_row(
+            f"[bold green]{pct(ownership.public_float_pct or (stats.float_percentage if stats else None))}[/bold green]",
+            f"[bold yellow]{pct(ownership.insider_pct or (stats.percent_insiders if stats else None))}[/bold yellow]",
+            f"[bold cyan]{pct(ownership.institution_pct or (stats.percent_institutions if stats else None))}[/bold cyan]",
+            f"[bold magenta]{pct(ownership.government_pct)}[/bold magenta]",
+        )
+        console.print(Panel(summary, border_style="cyan", subtitle=f"[dim]Sumber: {ownership.source}[/dim]"))
+
+        # KSEI SID retail participation
+        sid = ownership.sid_statistics
+        if sid and (sid.total_sid or sid.equity_sid):
+            sid_text = Text()
+            sid_text.append("KSEI SID (Investor Terdaftar): ", style="bold")
+            sid_text.append(f"Total {sid.total_sid:,} " if sid.total_sid else "Total - ", style="green")
+            sid_text.append(f"· Saham {sid.equity_sid:,}" if sid.equity_sid else "· Saham -", style="green")
+            if sid.as_of_date:
+                sid_text.append(f"  (per {sid.as_of_date})", style="dim")
+            console.print(Panel(sid_text, border_style="green", box=box.MINIMAL))
+
+        # Detailed holders
+        holders = (
+            list(ownership.major_shareholders)
+            + list(ownership.institutional_holders)
+            + list(ownership.fund_holders)
+        )
+        if holders:
+            htable = Table(title="[bold]Daftar Pemegang Saham[/bold]", box=box.SIMPLE)
+            htable.add_column("Pemegang Saham", style="bold")
+            htable.add_column("Kategori")
+            htable.add_column("Kepemilikan", justify="right")
+            for h in holders:
+                style = "bold yellow" if h.is_controlling else "white"
+                htable.add_row(h.name, h.category or "-", f"[{style}]{pct(h.percentage)}[/{style}]")
+            console.print(htable)
+
+        if ownership.notes:
+            console.print(f"[dim italic]{' '.join(ownership.notes)}[/dim italic]")
 
     @staticmethod
     def render_comparison(resp: ComparisonResponse):
