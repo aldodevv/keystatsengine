@@ -19,12 +19,8 @@ class MarketSummaryService:
 
     def get_market_summary(self) -> MarketSummaryResponse:
         tickers = self.emiten_service.list_all_available_tickers()
-        reports: List[EmitenAnalysisReport] = []
-
-        for t in tickers:
-            rep = self.emiten_service.analyze_single_emiten(t)
-            if rep:
-                reports.append(rep)
+        # Analyze the whole universe concurrently (cached) — seconds, not minutes.
+        reports: List[EmitenAnalysisReport] = self.emiten_service.analyze_many(tickers)
 
         # 1. Convert to EmitenSummaryItem list
         summary_items: List[EmitenSummaryItem] = []

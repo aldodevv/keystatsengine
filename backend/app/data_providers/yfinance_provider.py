@@ -28,6 +28,7 @@ except Exception:  # pragma: no cover - import guard
     yf = None
 
 from app.data_providers.base import BaseDataProvider
+from app.data_providers.idx_universe import get_idx_universe
 from app.models.keystats import RawKeyStats, FinancialPeriod, BankSpecificMetrics
 from app.models.chart import CandleDataPoint
 from app.models.xbrl import XBRLEntryPoint
@@ -491,22 +492,51 @@ class YFinanceProvider(BaseDataProvider):
 
     def list_all_tickers(self) -> List[str]:
         """
-        Yahoo Finance has no free "list all IDX symbols" endpoint. Return an empty list so
-        the orchestrator can fall through to a source that can enumerate symbols, rather
-        than fabricating a ticker universe.
+        Yahoo Finance has no free "list all IDX symbols" endpoint, so we return a curated
+        universe of real IDX ticker CODES (LQ45/IDX80 + other liquid emitens). These are
+        public identifiers only — each emiten's actual figures are still fetched live from
+        Yahoo. Override/extend via the IDX_TICKER_UNIVERSE env var.
         """
-        return []
+        if self._symbol_cache is None:
+            self._symbol_cache = get_idx_universe()
+        return self._symbol_cache
 
     def search_tickers(self, query: str) -> List[RawKeyStats]:
         """
-        Resolve a query directly as a ticker (Yahoo has no free bulk search for IDX).
-        Returns the single matching emiten's stats when it resolves, else empty.
+        Search the IDX universe by ticker code (and, best-effort, by company name).
+
+        1. Direct code match resolves immediately (e.g. "PTBA").
+        2. Otherwise, match the query as a substring of universe codes.
+        Returns live stats for each match (capped for responsiveness).
         """
-        clean = query.upper().replace(".JK", "").strip()
-        if not clean:
+        q = query.upper().replace(".JK", "").strip()
+        if not q:
             return []
-        stats = self.get_keystats(clean)
-        return [stats] if stats else []
+
+        universe = self.list_all_tickers()
+
+        # Exact code hit first.
+        ordered: List[str] = []
+        if q in universe:
+            ordered.append(q)
+        # Then substring code matches (prefix-priority).
+        for code in universe:
+            if code == q:
+                continue
+            if code.startswith(q) or q in code:
+                ordered.append(code)
+
+        # If the query isn't in our universe at all, still try to resolve it directly
+        # (user may search a valid IDX code we didn't bundle).
+        if not ordered:
+            ordered = [q]
+
+        results: List[RawKeyStats] = []
+        for code in ordered[:10]:
+            stats = self.get_keystats(code)
+            if stats:
+                results.append(stats)
+        return results
 
     def get_shareholders(self, ticker: str) -> Optional[OwnershipBreakdown]:
         """Ownership composition from Yahoo Finance holders data, where available."""

@@ -30,9 +30,16 @@ Priority is controlled by the `DATA_SOURCE_PRIORITY` environment variable
   corporate-action adjusted historical OHLCV, and holder composition where Yahoo exposes it.
 - No configuration required. This is the recommended source for personal / self-consumption
   use of IDX data.
-- Note: Yahoo has no free "list every IDX symbol" endpoint, so ticker enumeration and bulk
-  market screening are limited unless a licensed source (below) is also configured. Single
-  ticker lookups and search-by-code work fine.
+- Note: Yahoo has no free "list every IDX symbol" endpoint. To keep market-wide features
+  (Top Picks, screener, IDX summary) working, BRIGHTS bundles a curated universe of **real
+  IDX ticker codes** (LQ45/IDX80 + other liquid emitens) in
+  `backend/app/data_providers/idx_universe.py`. These are public identifiers only — every
+  emiten's actual figures are still fetched **live** from Yahoo; nothing is fabricated.
+  Override or extend the list with the `IDX_TICKER_UNIVERSE` env var (comma-separated codes,
+  e.g. `IDX_TICKER_UNIVERSE="BBRI,ASII,TLKM"`). A licensed source (below) provides full
+  automatic enumeration if you'd rather not maintain the list.
+- Performance: market-wide passes analyze the universe concurrently and cache results for
+  5 minutes, so the first market-summary load takes ~15-20s and subsequent loads are instant.
 
 > Content was rephrased for compliance with licensing restrictions. yfinance is a free,
 > open-source library that downloads market data from Yahoo Finance. See the

@@ -31,11 +31,7 @@ class ScreenerService:
         all_tickers = self.emiten_service.list_all_available_tickers()
         matched: List[EmitenSummaryItem] = []
         
-        for t in all_tickers:
-            report = self.emiten_service.analyze_single_emiten(t)
-            if not report:
-                continue
-                
+        for report in self.emiten_service.analyze_many(all_tickers):
             if self._matches_criteria(report, criteria):
                 item = EmitenSummaryItem(
                     ticker=report.ticker,
@@ -105,11 +101,7 @@ class ScreenerService:
         all_tickers = self.emiten_service.list_all_available_tickers()
         recommendations: List[PriceRecommendationItem] = []
         
-        for t in all_tickers:
-            report = self.emiten_service.analyze_single_emiten(t)
-            if not report:
-                continue
-                
+        for report in self.emiten_service.analyze_many(all_tickers):
             if self._matches_criteria(report, criteria):
                 reason = self._build_recommendation_reason(report)
                 recommendations.append(
