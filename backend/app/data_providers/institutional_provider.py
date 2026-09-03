@@ -1,23 +1,28 @@
 """
 Primary Data Orchestrator for BRIGHTS — BRI Stock Intelligence (IDX / BEI).
 
-Real-data-only. Chains multiple legitimate, licensed sources and returns the first that
-supplies real data. There is NO synthetic seed dataset and NO fabricated fallback: when no
-configured source can supply data, the provider fails loudly rather than inventing numbers.
+Real-data-only. Chains legitimate data sources and returns the first that supplies real
+data. There is NO synthetic seed dataset and NO fabricated fallback: when no source can
+supply data, the provider fails loudly rather than inventing numbers.
 
 Source precedence (configurable via DATA_SOURCE_PRIORITY, comma-separated):
-  1. "sectors" — Sectors.app (Supertype). Licensed IDX/KSEI fundamentals & shareholder data,
-                 kept current beyond 2024. Best accuracy/completeness for IDX. Needs SECTORS_API_KEY.
-  2. "eodhd"   — EODHD. Global fundamentals + realtime prices / adjusted OHLCV. Needs EODHD_API_KEY.
+  1. "yfinance" — Yahoo Finance via the free open-source `yfinance` library. **Default,
+                  free, public, no API key.** IDX tickers (.JK): prices, adjusted OHLCV,
+                  multi-year fundamentals (IDR), and holder composition where exposed.
+  2. "sectors"  — Sectors.app (Supertype). Licensed IDX/KSEI fundamentals & shareholders.
+                  Optional; only active when SECTORS_API_KEY is set.
+  3. "eodhd"    — EODHD. Global fundamentals + realtime prices. Optional; only active when
+                  a real EODHD_API_KEY is set.
 
-Default priority: "sectors,eodhd". Shareholder/ownership data is sourced from whichever
-configured source can provide it (Sectors preferred).
+Default priority: "yfinance,sectors,eodhd". The two licensed sources are used only if the
+operator has configured their keys; otherwise BRIGHTS runs entirely on free Yahoo data.
 """
 
 import os
 from typing import Optional, List, Dict, Any
 
 from app.data_providers.base import BaseDataProvider
+from app.data_providers.yfinance_provider import YFinanceProvider
 from app.data_providers.sectors_provider import SectorsProvider
 from app.data_providers.eodhd_provider import EODHDProvider
 from app.models.keystats import RawKeyStats
@@ -32,7 +37,7 @@ class DataSourceNotConfiguredError(RuntimeError):
 class InstitutionalDataProvider(BaseDataProvider):
     """
     Orchestrates real IDX data sources in configurable priority order.
-    Requires at least one real source to be configured (Sectors.app or EODHD).
+    Uses free Yahoo Finance by default; licensed sources (Sectors.app, EODHD) are optional.
     """
 
     def __init__(
@@ -40,10 +45,11 @@ class InstitutionalDataProvider(BaseDataProvider):
         sectors_api_key: Optional[str] = None,
         eodhd_api_key: Optional[str] = None,
     ):
+        self.yfinance = YFinanceProvider()
         self.sectors = SectorsProvider(api_key=sectors_api_key)
         self.eodhd = EODHDProvider(api_key=eodhd_api_key)
 
-        priority = os.getenv("DATA_SOURCE_PRIORITY", "sectors,eodhd")
+        priority = os.getenv("DATA_SOURCE_PRIORITY", "yfinance,sectors,eodhd")
         self._priority = [p.strip().lower() for p in priority.split(",") if p.strip()]
 
     # -------------------------------------------------------------
@@ -53,8 +59,9 @@ class InstitutionalDataProvider(BaseDataProvider):
         return bool(self.eodhd.api_key) and self.eodhd.api_key != "demo"
 
     def _configured_sources(self) -> List[BaseDataProvider]:
-        """Returns configured providers in priority order (real keys only)."""
+        """Returns configured providers in priority order (usable sources only)."""
         available = {
+            "yfinance": self.yfinance if self.yfinance.is_configured else None,
             "sectors": self.sectors if self.sectors.is_configured else None,
             "eodhd": self.eodhd if self._eodhd_ready() else None,
         }
@@ -73,8 +80,9 @@ class InstitutionalDataProvider(BaseDataProvider):
         sources = self._configured_sources()
         if not sources:
             raise DataSourceNotConfiguredError(
-                "No real market-data source configured. Set SECTORS_API_KEY (Sectors.app, "
-                "licensed IDX/KSEI data) and/or EODHD_API_KEY to fetch live IDX data. "
+                "No real market-data source available. The default free source is Yahoo "
+                "Finance (install the 'yfinance' package). Optionally set SECTORS_API_KEY "
+                "(Sectors.app) and/or EODHD_API_KEY for licensed data. "
                 "Mock/synthetic data has been permanently removed from this platform."
             )
         return sources
@@ -120,11 +128,7 @@ class InstitutionalDataProvider(BaseDataProvider):
 
     def get_historical_ohlcv(self, ticker: str, timeframe: str = "1y") -> List[CandleDataPoint]:
         clean = ticker.upper().replace(".JK", "").strip()
-        # Prefer EODHD for corporate-action adjusted OHLCV when available, else any source.
-        sources = self._require_source()
-        if self._eodhd_ready() and self.eodhd in sources:
-            sources = [self.eodhd] + [s for s in sources if s is not self.eodhd]
-        for source in sources:
+        for source in self._require_source():
             try:
                 candles = source.get_historical_ohlcv(clean, timeframe)
             except Exception:

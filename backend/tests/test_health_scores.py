@@ -198,8 +198,12 @@ def test_analysis_pipeline_over_fixture_universe():
         assert report.net_income > 0
 
 
-def test_institutional_provider_requires_real_source(monkeypatch):
-    """The production provider must refuse to serve data when no real source is configured."""
+def test_institutional_provider_uses_free_yfinance_by_default(monkeypatch):
+    """
+    With no licensed keys set, the provider must still be usable via the free public
+    Yahoo Finance source (yfinance). It only fails loudly when even yfinance is
+    unavailable — it must never fabricate data.
+    """
     monkeypatch.delenv("EODHD_API_KEY", raising=False)
     monkeypatch.delenv("SECTORS_API_KEY", raising=False)
     from app.data_providers.institutional_provider import (
@@ -208,8 +212,21 @@ def test_institutional_provider_requires_real_source(monkeypatch):
     )
 
     provider = InstitutionalDataProvider(sectors_api_key="", eodhd_api_key="demo")
-    assert provider.is_configured is False
+
+    # yfinance is a free, keyless source and should keep the provider configured.
+    assert provider.is_configured is True
+
+    # If yfinance is unavailable (e.g. library missing), the provider must fail loudly
+    # rather than fabricate data.
+    provider.yfinance = None
+
+    class _NoSources(InstitutionalDataProvider):
+        def _configured_sources(self):
+            return []
+
+    empty = _NoSources(sectors_api_key="", eodhd_api_key="demo")
+    assert empty.is_configured is False
     with pytest.raises(DataSourceNotConfiguredError):
-        provider.get_keystats("BBRI")
+        empty.get_keystats("BBRI")
     with pytest.raises(DataSourceNotConfiguredError):
-        provider.list_all_tickers()
+        empty.list_all_tickers()
